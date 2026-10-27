@@ -1,0 +1,465 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user account record storing registration fee status, phone number, and Rental Hero points.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID matching the document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "phone": {
+          "type": "string",
+          "description": "Verified 10-digit Indian mobile number or empty string before verification.",
+          "minLength": 0,
+          "maxLength": 15
+        },
+        "hasPaidSeekerFee": {
+          "type": "boolean",
+          "description": "Whether the user has paid the ₹49 Take Rent registration fee."
+        },
+        "hasPaidOwnerFee": {
+          "type": "boolean",
+          "description": "Whether the user has paid the ₹49 Give Rent registration fee."
+        },
+        "points": {
+          "type": "number",
+          "description": "Total Rental Hero points balance."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "phone",
+        "hasPaidSeekerFee",
+        "hasPaidOwnerFee",
+        "points",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HouseListing": {
+      "title": "HouseListing",
+      "description": "Public rental listing categorized into family, commercial, hostel, or bachelor without PII owner phone number.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the property owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "description": "Rental category matching Take Rent and Give Rent options.",
+          "enum": ["family", "commercial", "hostel", "bachelor"]
+        },
+        "city": {
+          "type": "string",
+          "description": "City name.",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "location": {
+          "type": "string",
+          "description": "Area and city location display text.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "rentPrice": {
+          "type": "number",
+          "description": "Monthly rent price in INR."
+        },
+        "photos": {
+          "type": "array",
+          "description": "Bounded list of 1 to 3 listing photos (URL or base64 data URI)."
+        },
+        "requirements": {
+          "type": "string",
+          "description": "Tenant requirements or property details.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "terms": {
+          "type": "string",
+          "description": "Terms and conditions for tenants.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "latitude": {
+          "type": "number",
+          "description": "GPS latitude coordinate for nearest sorting."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "GPS longitude coordinate for nearest sorting."
+        },
+        "status": {
+          "type": "string",
+          "description": "Listing visibility state.",
+          "enum": ["active", "removed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "ownerId",
+        "category",
+        "city",
+        "location",
+        "rentPrice",
+        "photos",
+        "requirements",
+        "terms",
+        "latitude",
+        "longitude",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HouseContact": {
+      "title": "HouseContact",
+      "description": "Isolated PII contact subdocument for a house listing, readable only by paid seekers, the owner, or admin.",
+      "type": "object",
+      "properties": {
+        "houseId": {
+          "type": "string",
+          "description": "Parent house document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner UID matching parent house.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerPhone": {
+          "type": "string",
+          "description": "Owner contact phone number.",
+          "minLength": 10,
+          "maxLength": 15
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "houseId",
+        "ownerId",
+        "ownerPhone",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HeroUpload": {
+      "title": "HeroUpload",
+      "description": "To-Let board or house photo uploaded with GPS coordinates by a Rental Hero.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the user who uploaded the photo.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Display name of the uploader.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Photo data URL or image URL of the To-Let board.",
+          "minLength": 10,
+          "maxLength": 700000
+        },
+        "locationText": {
+          "type": "string",
+          "description": "Area or street label accompanying GPS.",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "latitude": {
+          "type": "number",
+          "description": "GPS latitude coordinate."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "GPS longitude coordinate."
+        },
+        "status": {
+          "type": "string",
+          "description": "Moderation status managed by admin.",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "pointsAwarded": {
+          "type": "number",
+          "description": "Points credited (0 while pending/rejected, 100 when approved)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "photoUrl",
+        "locationText",
+        "latitude",
+        "longitude",
+        "status",
+        "pointsAwarded",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ScratchCard": {
+      "title": "ScratchCard",
+      "description": "Scratch card reward issued when a Hero Upload is approved for 100 points.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Recipient user UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uploadId": {
+          "type": "string",
+          "description": "Source HeroUpload document ID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "rewardType": {
+          "type": "string",
+          "description": "Type of reward: cash or coupon.",
+          "enum": ["cash", "coupon"]
+        },
+        "rewardLabel": {
+          "type": "string",
+          "description": "Reward display title (e.g., ₹25 UPI Cash or 20% Off Packers).",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "rewardCode": {
+          "type": "string",
+          "description": "Redemption code or UPI reference.",
+          "minLength": 3,
+          "maxLength": 40
+        },
+        "isScratched": {
+          "type": "boolean",
+          "description": "Whether the user has scratched the card."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "userId",
+        "uploadId",
+        "rewardType",
+        "rewardLabel",
+        "rewardCode",
+        "isScratched",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PaymentRecord": {
+      "title": "PaymentRecord",
+      "description": "Immutable ₹49 registration fee payment record via UPI or Razorpay.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Payer UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "paymentType": {
+          "type": "string",
+          "description": "Purpose of registration fee.",
+          "enum": ["seeker_fee", "owner_fee"]
+        },
+        "amount": {
+          "type": "number",
+          "description": "Fee amount in INR (49)."
+        },
+        "method": {
+          "type": "string",
+          "description": "Payment channel.",
+          "enum": ["upi", "razorpay"]
+        },
+        "referenceId": {
+          "type": "string",
+          "description": "Transaction reference ID.",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "description": "Payment status.",
+          "enum": ["completed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        }
+      },
+      "required": [
+        "userId",
+        "paymentType",
+        "amount",
+        "method",
+        "referenceId",
+        "status",
+        "createdAt"
+      ]
+    },
+    "AdBanner": {
+      "title": "AdBanner",
+      "description": "Rotating home screen advertisement banner managed by admin.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short advertiser headline.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Ad banner image URL or compressed data URI.",
+          "minLength": 10,
+          "maxLength": 700000
+        },
+        "status": {
+          "type": "string",
+          "description": "Visibility status of the ad.",
+          "enum": ["active"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        }
+      },
+      "required": ["title", "imageUrl", "status", "createdAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin registry document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Admin UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp."
+        }
+      },
+      "required": ["uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profiles containing registration status, phone PII, and points."
+    },
+    "/houses/{houseId}": {
+      "schema": { "$ref": "#/entities/HouseListing" },
+      "description": "Public rental listings categorized by family, commercial, hostel, or bachelor."
+    },
+    "/houses/{houseId}/contact/{contactId}": {
+      "schema": { "$ref": "#/entities/HouseContact" },
+      "description": "Isolated PII subcollection storing owner phone number, gated to paid seekers, owner, or admin."
+    },
+    "/heroUploads/{uploadId}": {
+      "schema": { "$ref": "#/entities/HeroUpload" },
+      "description": "To-Let board photo uploads with GPS coordinates submitted by Rental Heroes."
+    },
+    "/scratchCards/{cardId}": {
+      "schema": { "$ref": "#/entities/ScratchCard" },
+      "description": "Scratch card rewards earned upon approval of Hero Uploads."
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/PaymentRecord" },
+      "description": "Immutable ₹49 registration payment receipts."
+    },
+    "/ads/{adId}": {
+      "schema": { "$ref": "#/entities/AdBanner" },
+      "description": "Rotating home screen ad banners uploaded or removed by Admin."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted admin user lookup documents."
+    }
+  }
+}

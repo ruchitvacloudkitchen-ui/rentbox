@@ -1,0 +1,536 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'ruchitvacloudkitchen@gmail.com'
+      );
+    }
+
+    // Entity Validation Blueprints
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+        'uid',
+        'displayName',
+        'phone',
+        'hasPaidSeekerFee',
+        'hasPaidOwnerFee',
+        'points',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid',
+        'displayName',
+        'phone',
+        'hasPaidSeekerFee',
+        'hasPaidOwnerFee',
+        'points',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.uid == userId &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+      data.phone is string && data.phone.size() >= 0 && data.phone.size() <= 15 &&
+      data.hasPaidSeekerFee is bool &&
+      data.hasPaidOwnerFee is bool &&
+      data.points is number && data.points >= 0 && data.points <= 1000000 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidHouseListing(data) {
+      return data.keys().hasAll([
+        'ownerId',
+        'category',
+        'city',
+        'location',
+        'rentPrice',
+        'photos',
+        'requirements',
+        'terms',
+        'latitude',
+        'longitude',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'ownerId',
+        'category',
+        'city',
+        'location',
+        'rentPrice',
+        'photos',
+        'requirements',
+        'terms',
+        'latitude',
+        'longitude',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.ownerId is string && isValidId(data.ownerId) &&
+      data.category is string && data.category in ['family', 'commercial', 'hostel', 'bachelor'] &&
+      data.city is string && data.city.size() >= 2 && data.city.size() <= 60 &&
+      data.location is string && data.location.size() >= 2 && data.location.size() <= 120 &&
+      data.rentPrice is number && data.rentPrice >= 500 && data.rentPrice <= 10000000 &&
+      data.photos is list && data.photos.size() >= 1 && data.photos.size() <= 3 &&
+      data.photos[0] is string && data.photos[0].size() >= 10 && data.photos[0].size() <= 700000 &&
+      data.requirements is string && data.requirements.size() >= 1 && data.requirements.size() <= 500 &&
+      data.terms is string && data.terms.size() >= 1 && data.terms.size() <= 500 &&
+      data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+      data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+      data.status is string && data.status in ['active', 'removed'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidHouseContact(data, houseId) {
+      return data.keys().hasAll([
+        'houseId',
+        'ownerId',
+        'ownerPhone',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'houseId',
+        'ownerId',
+        'ownerPhone',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.houseId is string && data.houseId == houseId && isValidId(data.houseId) &&
+      data.ownerId is string && isValidId(data.ownerId) &&
+      data.ownerPhone is string && data.ownerPhone.size() >= 10 && data.ownerPhone.size() <= 15 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidHeroUpload(data) {
+      return data.keys().hasAll([
+        'userId',
+        'userName',
+        'photoUrl',
+        'locationText',
+        'latitude',
+        'longitude',
+        'status',
+        'pointsAwarded',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'userName',
+        'photoUrl',
+        'locationText',
+        'latitude',
+        'longitude',
+        'status',
+        'pointsAwarded',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.userId is string && isValidId(data.userId) &&
+      data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80 &&
+      data.photoUrl is string && data.photoUrl.size() >= 10 && data.photoUrl.size() <= 700000 &&
+      data.locationText is string && data.locationText.size() >= 2 && data.locationText.size() <= 140 &&
+      data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+      data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+      data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
+      data.pointsAwarded is number && data.pointsAwarded in [0, 100] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidScratchCard(data) {
+      return data.keys().hasAll([
+        'userId',
+        'uploadId',
+        'rewardType',
+        'rewardLabel',
+        'rewardCode',
+        'isScratched',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'uploadId',
+        'rewardType',
+        'rewardLabel',
+        'rewardCode',
+        'isScratched',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.userId is string && isValidId(data.userId) &&
+      data.uploadId is string && isValidId(data.uploadId) &&
+      data.rewardType is string && data.rewardType in ['cash', 'coupon'] &&
+      data.rewardLabel is string && data.rewardLabel.size() >= 2 && data.rewardLabel.size() <= 80 &&
+      data.rewardCode is string && data.rewardCode.size() >= 3 && data.rewardCode.size() <= 40 &&
+      data.isScratched is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidPaymentRecord(data) {
+      return data.keys().hasAll([
+        'userId',
+        'paymentType',
+        'amount',
+        'method',
+        'referenceId',
+        'status',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'paymentType',
+        'amount',
+        'method',
+        'referenceId',
+        'status',
+        'createdAt'
+      ]) &&
+      data.userId is string && isValidId(data.userId) &&
+      data.paymentType is string && data.paymentType in ['seeker_fee', 'owner_fee'] &&
+      data.amount is number && data.amount == 49 &&
+      data.method is string && data.method in ['upi', 'razorpay'] &&
+      data.referenceId is string && data.referenceId.size() >= 4 && data.referenceId.size() <= 64 &&
+      data.status is string && data.status == 'completed' &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidAdBanner(data) {
+      return data.keys().hasAll([
+        'title',
+        'imageUrl',
+        'status',
+        'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title',
+        'imageUrl',
+        'status',
+        'createdAt'
+      ]) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+      data.imageUrl is string && data.imageUrl.size() >= 10 && data.imageUrl.size() <= 700000 &&
+      data.status is string && data.status == 'active' &&
+      data.createdAt is timestamp;
+    }
+
+    // 1. Users Collection (PII Isolated - No List Allowed)
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if false;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        request.auth.uid == userId &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().points == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            request.auth.uid == userId &&
+            incoming().points == existing().points &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName',
+              'phone',
+              'hasPaidSeekerFee',
+              'hasPaidOwnerFee',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 2. Houses Collection (Public Listings without PII)
+    match /houses/{houseId} {
+      allow get: if isValidId(houseId) && (
+        existing().status == 'active' ||
+        (isSignedIn() && (existing().ownerId == request.auth.uid || isAdmin()))
+      );
+
+      allow list: if resource.data.status == 'active' ||
+        (isSignedIn() && (resource.data.ownerId == request.auth.uid || isAdmin()));
+
+      allow create: if isVerifiedUser() &&
+        isValidId(houseId) &&
+        isValidHouseListing(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            incoming().ownerId == request.auth.uid &&
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidOwnerFee == true
+          )
+        );
+
+      allow update: if isVerifiedUser() &&
+        isValidId(houseId) &&
+        isValidHouseListing(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'category',
+              'city',
+              'location',
+              'rentPrice',
+              'photos',
+              'requirements',
+              'terms',
+              'latitude',
+              'longitude',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() &&
+        isValidId(houseId) && (
+          isAdmin() || existing().ownerId == request.auth.uid
+        );
+
+      // Subcollection: Isolated Owner Phone Contact PII (Master Gate + Paid Seeker Gate)
+      match /contact/{contactId} {
+        allow get: if isSignedIn() &&
+          isValidId(houseId) &&
+          isValidId(contactId) &&
+          contactId == 'info' &&
+          exists(/databases/$(database)/documents/houses/$(houseId)) && (
+            existing().ownerId == request.auth.uid ||
+            isAdmin() ||
+            (
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidSeekerFee == true
+            )
+          );
+
+        allow list: if false;
+
+        allow create: if isVerifiedUser() &&
+          isValidId(houseId) &&
+          isValidId(contactId) &&
+          contactId == 'info' &&
+          isValidHouseContact(incoming(), houseId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          existsAfter(/databases/$(database)/documents/houses/$(houseId)) && (
+            isAdmin() ||
+            (
+              incoming().ownerId == request.auth.uid &&
+              getAfter(/databases/$(database)/documents/houses/$(houseId)).data.ownerId == request.auth.uid
+            )
+          );
+
+        allow update: if isVerifiedUser() &&
+          isValidId(houseId) &&
+          isValidId(contactId) &&
+          contactId == 'info' &&
+          isValidHouseContact(incoming(), houseId) &&
+          incoming().houseId == existing().houseId &&
+          incoming().ownerId == existing().ownerId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/houses/$(houseId)) && (
+            isAdmin() ||
+            (
+              existing().ownerId == request.auth.uid &&
+              get(/databases/$(database)/documents/houses/$(houseId)).data.ownerId == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['ownerPhone', 'updatedAt'])
+            )
+          );
+
+        allow delete: if isVerifiedUser() &&
+          isValidId(houseId) &&
+          isValidId(contactId) && (
+            isAdmin() || existing().ownerId == request.auth.uid
+          );
+      }
+    }
+
+    // 3. Rental Heroes Uploads Collection
+    match /heroUploads/{uploadId} {
+      allow get: if isSignedIn() &&
+        isValidId(uploadId) && (
+          existing().userId == request.auth.uid || isAdmin()
+        );
+
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(uploadId) &&
+        isValidHeroUpload(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().pointsAwarded == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      // Action-Based Update + Terminal State Lock: Once approved/rejected, locked except for admin override
+      allow update: if isVerifiedUser() &&
+        isValidId(uploadId) &&
+        isValidHeroUpload(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().userName == existing().userName &&
+        incoming().photoUrl == existing().photoUrl &&
+        incoming().locationText == existing().locationText &&
+        incoming().latitude == existing().latitude &&
+        incoming().longitude == existing().longitude &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().status == 'pending' || isAdmin()) &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'pointsAwarded', 'updatedAt']);
+
+      allow delete: if isVerifiedUser() && isValidId(uploadId) && isAdmin();
+    }
+
+    // 4. Scratch Cards Collection
+    match /scratchCards/{cardId} {
+      allow get: if isSignedIn() &&
+        isValidId(cardId) && (
+          existing().userId == request.auth.uid || isAdmin()
+        );
+
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(cardId) &&
+        isValidScratchCard(incoming()) &&
+        incoming().isScratched == false &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(incoming().userId)) &&
+        exists(/databases/$(database)/documents/heroUploads/$(incoming().uploadId)) && (
+          isAdmin() ||
+          (
+            incoming().userId == request.auth.uid &&
+            get(/databases/$(database)/documents/heroUploads/$(incoming().uploadId)).data.userId == request.auth.uid &&
+            get(/databases/$(database)/documents/heroUploads/$(incoming().uploadId)).data.status == 'approved'
+          )
+        );
+
+      // Terminal State Lock: Once isScratched == true, user cannot update again
+      allow update: if isVerifiedUser() &&
+        isValidId(cardId) &&
+        isValidScratchCard(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().uploadId == existing().uploadId &&
+        incoming().rewardType == existing().rewardType &&
+        incoming().rewardLabel == existing().rewardLabel &&
+        incoming().rewardCode == existing().rewardCode &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().userId == request.auth.uid &&
+            existing().isScratched == false &&
+            incoming().isScratched == true &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['isScratched', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 5. Payments Collection (Immutable Registration Receipts)
+    match /payments/{paymentId} {
+      allow get: if isSignedIn() &&
+        isValidId(paymentId) && (
+          existing().userId == request.auth.uid || isAdmin()
+        );
+
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(paymentId) &&
+        isValidPaymentRecord(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update, delete: if false;
+    }
+
+    // 6. Ads Collection (Home Screen Rotating Ad Banner - Admin Managed)
+    match /ads/{adId} {
+      allow get: if isValidId(adId) && (existing().status == 'active' || isAdmin());
+      allow list: if resource.data.status == 'active' || isAdmin();
+
+      allow create: if isVerifiedUser() &&
+        isValidId(adId) &&
+        isValidAdBanner(incoming()) &&
+        incoming().createdAt == request.time &&
+        isAdmin();
+
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(adId) && isAdmin();
+    }
+
+    // 7. Admins Registry
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+  }
+}

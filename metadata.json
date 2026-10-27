@@ -1,0 +1,6 @@
+{
+  "name": "RENTBOX",
+  "description": "Your home, in a box. Minimalist home rental platform for seekers, owners, and Rental Heroes.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
