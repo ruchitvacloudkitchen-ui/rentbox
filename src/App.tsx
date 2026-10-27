@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BadgeCheck,
   BedDouble,
@@ -75,9 +76,13 @@ import {
   getDistanceKm,
   INITIAL_SHOWCASE_HOUSES,
   RentalCategory,
+  RoomBhkType,
   SAMPLE_TOLET_PHOTO,
   STOCK_FREE_HOME_IMAGES,
 } from './utils/sampleAssets';
+import { findSeoPageByPath } from './utils/seoKeywords';
+import { PopularSearchesSection } from './components/PopularSearchesSection';
+import { RentalHeroesPage } from './components/RentalHeroesPage';
 import { RazorpayModal } from './components/RazorpayModal';
 import { ScratchCardData, ScratchCardItem } from './components/ScratchCardItem';
 
@@ -100,6 +105,13 @@ interface UserProfileData {
   hasPaidSeekerFee: boolean;
   hasPaidOwnerFee: boolean;
   points: number;
+  freeUntil?: number;
+  referralCode?: string;
+  referredByCode?: string;
+  referralBonusCredited?: boolean;
+  rentedBonusCash?: number;
+  agentArea?: string;
+  agentBonusPoints?: number;
 }
 
 interface HouseListingData {
@@ -108,6 +120,7 @@ interface HouseListingData {
   ownerName: string;
   updatedTag: 'Updated today' | 'Updated 2 days ago';
   category: RentalCategory;
+  bhk: RoomBhkType;
   city: string;
   location: string;
   rentPrice: number;
@@ -134,8 +147,18 @@ interface HeroUploadData {
 }
 
 const ADMIN_EMAIL = 'ruchitvacloudkitchen@gmail.com';
-const CONTACT_NUMBER = '+91 98450 00049';
-const CONTACT_TEL = '+919845000049';
+const CONTACT_NUMBER = '+8886388635, 8999999333';
+const CONTACT_PRIMARY_TEL = '+918886388635';
+const CONTACT_SECONDARY_TEL = '+918999999333';
+const WHATSAPP_NUMBER = '8886388635';
+const WHATSAPP_URL = 'https://wa.me/918886388635';
+
+const ALWAL_NEARBY_LOCALITIES = [
+  'Trimalgherry',
+  'Trimulgherry',
+  'Kandla Koya',
+  'HMT Officers Colony',
+] as const;
 
 const CATEGORY_META: Record<
   RentalCategory,
@@ -205,6 +228,12 @@ const TOP_HERO_BANNERS: {
     category: 'bachelor',
   },
   {
+    id: 'hero_slide_nobroker',
+    imageUrl: '/assets/aistudio/homepage-banner_b2030f63.png',
+    alt: 'RENTBOX - Why Use NoBroker Avoid Brokers. We directly connect you to verified owners to save brokerage.',
+    targetPage: 'take_options',
+  },
+  {
     id: 'hero_slide_owner_49',
     imageUrl:
       '/assets/aistudio/Gemini_Generated_Image_v94pouv94pouv94p__1__1b71b9ba.png',
@@ -240,7 +269,112 @@ const GIVE_RENT_BANNER_IMAGE =
   '/assets/aistudio/Gemini_Generated_Image_v94pouv94pouv94p__1__1b71b9ba.png';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<PageRoute>('home');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [currentPage, setCurrentPageState] = useState<PageRoute>('home');
+
+  // Active Hyderabad SEO page if URL matches one of the 47 SEO keywords
+  const activeSeoPage = useMemo(
+    () => findSeoPageByPath(location.pathname),
+    [location.pathname]
+  );
+
+  // Navigate helper that keeps React Router URL in sync with app pages
+  const setCurrentPage = (nextPage: PageRoute) => {
+    setCurrentPageState(nextPage);
+    const routeMap: Record<PageRoute, string> = {
+      home: '/',
+      take_options: '/take-rent',
+      search: '/search',
+      saved: '/saved',
+      detail: '/property-detail',
+      give_options: '/give-rent',
+      owner: '/owner-dashboard',
+      hero: '/rental-heroes',
+      rewards: '/rewards',
+      login: '/login',
+    };
+    const targetPath = routeMap[nextPage] || '/';
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Sync direct URL entry with internal page state
+  useEffect(() => {
+    const cleanPath = location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (!cleanPath) {
+      setCurrentPageState('home');
+    } else if (cleanPath === 'take-rent') {
+      setCurrentPageState('take_options');
+    } else if (cleanPath === 'search') {
+      setCurrentPageState('search');
+    } else if (cleanPath === 'saved') {
+      setCurrentPageState('saved');
+    } else if (cleanPath === 'property-detail') {
+      setCurrentPageState('detail');
+    } else if (cleanPath === 'give-rent') {
+      setCurrentPageState('give_options');
+    } else if (cleanPath === 'owner-dashboard') {
+      setCurrentPageState('owner');
+    } else if (cleanPath === 'rental-heroes' || cleanPath === 'heroes') {
+      setCurrentPageState('hero');
+    } else if (cleanPath === 'rewards') {
+      setCurrentPageState('rewards');
+    } else if (cleanPath === 'login') {
+      setCurrentPageState('login');
+    }
+  }, [location.pathname]);
+
+  // Dynamic SEO Head Updater: Unique <title>, <meta name="description">, and <link rel="canonical"> on every page
+  useEffect(() => {
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : 'https://rentbox.in';
+    const canonicalPath = activeSeoPage
+      ? `/${activeSeoPage.slug}`
+      : location.pathname === '/'
+      ? '/'
+      : location.pathname;
+    const canonicalUrl = `${origin}${canonicalPath}`;
+
+    const pageTitle = activeSeoPage
+      ? activeSeoPage.title
+      : currentPage === 'hero'
+      ? 'Rental Heroes · Post To-Let Boards & Earn Points | RENTBOX Hyderabad'
+      : currentPage === 'give_options' || currentPage === 'owner'
+      ? 'Give Rent · Post Your House FREE for 3 Months | RENTBOX Hyderabad'
+      : currentPage === 'take_options' || currentPage === 'search'
+      ? 'Take Rent · No Broker Houses, Flats & Rooms in Hyderabad | RENTBOX'
+      : 'RENTBOX — Your home, in a box | No Broker Rentals in Hyderabad';
+
+    const pageDescription = activeSeoPage
+      ? activeSeoPage.metaDescription
+      : 'Your home, in a box. Browse photo-verified flats, independent houses, hostels, and bachelor rooms for rent in Hyderabad with zero brokerage.';
+
+    document.title = pageTitle;
+
+    const descMeta = document.querySelector('meta[name="description"]');
+    if (descMeta) descMeta.setAttribute('content', pageDescription);
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', pageTitle);
+
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', pageDescription);
+
+    let canonicalEl = document.querySelector(
+      'link[rel="canonical"]'
+    ) as HTMLLinkElement | null;
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalEl);
+    }
+    canonicalEl.setAttribute('href', canonicalUrl);
+  }, [activeSeoPage, currentPage, location.pathname]);
+
   const [heroBannerIndex, setHeroBannerIndex] = useState(0);
   const [showTopRightServicesMenu, setShowTopRightServicesMenu] =
     useState(false);
@@ -312,14 +446,33 @@ export default function App() {
     'About' | 'Contact' | 'Terms' | 'Privacy' | null
   >(null);
 
-  // Search State
+  // Search & Filter State (Rent Prices: 4500/-, 8000/-, 12000/- & Rent Rooms: 1BHK, 2BHK, 3BHK)
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRentFilter, setSelectedRentFilter] = useState<
+    'all' | 4500 | 8000 | 12000
+  >('all');
+  const [selectedBhkFilter, setSelectedBhkFilter] = useState<
+    'all' | RoomBhkType
+  >('all');
+  const [selectedNearbyLocalities, setSelectedNearbyLocalities] = useState<
+    string[]
+  >([]);
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false);
+  const [showPopularSearchesInMenu, setShowPopularSearchesInMenu] =
+    useState(false);
+  const [showTelugu, setShowTelugu] = useState(true);
 
   // Payment Modal State
   const [paymentModal, setPaymentModal] = useState<{
     isOpen: boolean;
     purpose: 'seeker_fee' | 'owner_fee';
   }>({ isOpen: false, purpose: 'seeker_fee' });
+
+  // Free Unlock Modal State for Bachelor & Hostel Seekers (Login with Google + Phone Number only, no payment)
+  const [freeSeekerModalOpen, setFreeSeekerModalOpen] = useState(false);
+  const [freeSeekerPhoneInput, setFreeSeekerPhoneInput] = useState('');
+  const [freeSeekerSaving, setFreeSeekerSaving] = useState(false);
+  const [freeSeekerError, setFreeSeekerError] = useState<string | null>(null);
 
   // Owner Phone OTP & Listing Form State
   const [phoneInput, setPhoneInput] = useState('');
@@ -488,7 +641,7 @@ export default function App() {
     );
   };
 
-  // 1. Auth Listener & Profile Bootstrap
+  // 1. Auth Listener & Profile Bootstrap (Saves 3-month freeUntil date and referralCode)
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -496,6 +649,8 @@ export default function App() {
 
       if (currentUser) {
         const userRef = doc(db, 'users', currentUser.uid);
+        const threeMonthsMs = Date.now() + 90 * 24 * 60 * 60 * 1000;
+        const generatedRefCode = `RBX${currentUser.uid.slice(0, 5).toUpperCase()}`;
         try {
           const snap = await getDoc(userRef);
           if (!snap.exists()) {
@@ -506,10 +661,26 @@ export default function App() {
               hasPaidSeekerFee: false,
               hasPaidOwnerFee: false,
               points: 0,
+              freeUntil: threeMonthsMs,
+              referralCode: generatedRefCode,
+              referredByCode: '',
+              referralBonusCredited: false,
+              rentedBonusCash: 0,
+              agentArea: '',
+              agentBonusPoints: 0,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             };
             await setDoc(userRef, initialProfile);
+          } else {
+            const existingData = snap.data();
+            if (!existingData.freeUntil || !existingData.referralCode) {
+              await updateDoc(userRef, {
+                freeUntil: existingData.freeUntil || threeMonthsMs,
+                referralCode: existingData.referralCode || generatedRefCode,
+                updatedAt: serverTimestamp(),
+              });
+            }
           }
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
@@ -537,6 +708,16 @@ export default function App() {
             hasPaidSeekerFee: Boolean(data.hasPaidSeekerFee),
             hasPaidOwnerFee: Boolean(data.hasPaidOwnerFee),
             points: Number(data.points || 0),
+            freeUntil: Number(
+              data.freeUntil || Date.now() + 90 * 24 * 60 * 60 * 1000
+            ),
+            referralCode:
+              data.referralCode || `RBX${user.uid.slice(0, 5).toUpperCase()}`,
+            referredByCode: data.referredByCode || '',
+            referralBonusCredited: Boolean(data.referralBonusCredited),
+            rentedBonusCash: Number(data.rentedBonusCash || 0),
+            agentArea: data.agentArea || '',
+            agentBonusPoints: Number(data.agentBonusPoints || 0),
           });
           if (data.phone && !houseOwnerPhone) {
             setHouseOwnerPhone(data.phone);
@@ -574,12 +755,20 @@ export default function App() {
               }
             }
 
+            const reqText = String(d.requirements || '').toUpperCase();
+            const inferredBhk: RoomBhkType = reqText.includes('3BHK')
+              ? '3BHK'
+              : reqText.includes('2BHK')
+              ? '2BHK'
+              : '1BHK';
+
             list.push({
               id: docSnap.id,
               ownerId: d.ownerId,
               ownerName: 'Verified Owner',
               updatedTag: updatedLabel,
               category: cat,
+              bhk: inferredBhk,
               city: d.city,
               location: d.location,
               rentPrice: Number(d.rentPrice),
@@ -621,13 +810,22 @@ export default function App() {
     };
   }, [authReady]);
 
-  // 4. Fetch Unlocked Owner Phone Numbers when Seeker has Paid ₹49 (or is Owner/Admin)
+  // 4. Fetch Unlocked Owner Phone Numbers when Seeker has Paid ₹49, or is Owner/Admin, or is viewing Bachelor/Hostel with verified phone
   useEffect(() => {
     if (!authReady || !user || !profile) return;
     const canViewAllPhones = profile.hasPaidSeekerFee || isAdminUser;
+    const hasSeekerPhone = Boolean(
+      profile.phone && profile.phone.replace(/\D/g, '').length >= 10
+    );
 
     firestoreHouses.forEach(async (house) => {
-      if (canViewAllPhones || house.ownerId === user.uid) {
+      const isFreeCategory =
+        house.category === 'bachelor' || house.category === 'hostel';
+      if (
+        canViewAllPhones ||
+        house.ownerId === user.uid ||
+        (isFreeCategory && hasSeekerPhone)
+      ) {
         if (unlockedPhones[house.id]) return;
         const contactPath = `houses/${house.id}/contact/info`;
         try {
@@ -746,6 +944,7 @@ export default function App() {
       ownerName: item.ownerName,
       updatedTag: item.updatedTag,
       category: item.category,
+      bhk: item.bhk,
       city: item.city,
       location: item.location,
       rentPrice: item.rentPrice,
@@ -758,21 +957,70 @@ export default function App() {
       isDemo: true,
       demoPhone: item.ownerPhonePreview,
     }));
-    return [...firestoreHouses, ...demoMapped].filter(
+    return [...demoMapped, ...firestoreHouses].filter(
       (h) => h.status === 'active' && Array.isArray(h.photos) && h.photos.length > 0
     );
   }, [firestoreHouses]);
 
+  // Recently Added 6 Showcase Houses (under 4500/-, 8000/-, 12000/-)
+  const recentlyAddedShowcaseHouses = useMemo(
+    () => allHousesWithPhotos.filter((h) => h.isDemo).slice(0, 6),
+    [allHousesWithPhotos]
+  );
+
+  // Check if user is searching "Alwal"
+  const isAlwalSearch = useMemo(
+    () => searchQuery.trim().toLowerCase().includes('alwal'),
+    [searchQuery]
+  );
+
+  const toggleNearbyLocality = (locality: string) => {
+    setSelectedNearbyLocalities((prev) =>
+      prev.includes(locality)
+        ? prev.filter((item) => item !== locality)
+        : [...prev, locality]
+    );
+  };
+
   // Category-Filtered & Rule-Sorted Listings for Take Rent
   const categoryListings = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const byCategory = allHousesWithPhotos.filter(
-      (h) =>
-        h.category === selectedTakeCategory &&
-        (!q ||
-          h.city.toLowerCase().includes(q) ||
-          h.location.toLowerCase().includes(q))
-    );
+    const byCategory = allHousesWithPhotos.filter((h) => {
+      if (h.category !== selectedTakeCategory) return false;
+
+      // Filter by Rent Price (4500/-, 8000/-, 12000/-)
+      if (selectedRentFilter !== 'all' && h.rentPrice > selectedRentFilter) {
+        return false;
+      }
+
+      // Filter by Rent Rooms (1BHK, 2BHK, 3BHK)
+      if (selectedBhkFilter !== 'all' && h.bhk !== selectedBhkFilter) {
+        return false;
+      }
+
+      // Filter by Search Query + Nearby Localities (when Alwal or localities selected)
+      if (!q && selectedNearbyLocalities.length === 0) return true;
+
+      const hay = `${h.city} ${h.location}`.toLowerCase();
+      const matchesQuery = q ? hay.includes(q) : false;
+      const matchesNearby = selectedNearbyLocalities.some((loc) =>
+        hay.includes(loc.toLowerCase())
+      );
+
+      // When searching "Alwal", also include Alwal's nearby localities if selected or by default
+      if (q.includes('alwal')) {
+        const activeLocalities =
+          selectedNearbyLocalities.length > 0
+            ? selectedNearbyLocalities
+            : [...ALWAL_NEARBY_LOCALITIES];
+        const matchesAlwalCluster =
+          hay.includes('alwal') ||
+          activeLocalities.some((loc) => hay.includes(loc.toLowerCase()));
+        return matchesAlwalCluster;
+      }
+
+      return matchesQuery || matchesNearby;
+    });
 
     if (selectedTakeCategory === 'hostel') {
       return [...byCategory].sort((a, b) => {
@@ -794,7 +1042,15 @@ export default function App() {
     }
 
     return byCategory;
-  }, [allHousesWithPhotos, selectedTakeCategory, searchQuery, userGps]);
+  }, [
+    allHousesWithPhotos,
+    selectedTakeCategory,
+    searchQuery,
+    selectedRentFilter,
+    selectedBhkFilter,
+    selectedNearbyLocalities,
+    userGps,
+  ]);
 
   // Saved (Hearted) Houses
   const savedHousesList = useMemo(
@@ -816,10 +1072,43 @@ export default function App() {
     [firestoreHouses, user]
   );
 
+  // Days left in the 3-month (90 days) Free for Owners period
+  const freeOwnerDaysLeft = useMemo(() => {
+    const targetMs =
+      profile?.freeUntil || Date.now() + 90 * 24 * 60 * 60 * 1000;
+    const diffDays = Math.ceil((targetMs - Date.now()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  }, [profile?.freeUntil]);
+
+  const isOwnerFreeActive = freeOwnerDaysLeft > 0;
+
+  // Matching rental properties for the current Hyderabad SEO keyword page
+  const seoMatchedListings = useMemo(() => {
+    if (!activeSeoPage) return [];
+    const filtered = allHousesWithPhotos.filter((h) => {
+      if (activeSeoPage.areaFilter) {
+        const hay = `${h.city} ${h.location} ${h.requirements}`.toLowerCase();
+        if (!hay.includes(activeSeoPage.areaFilter.toLowerCase())) {
+          return false;
+        }
+      }
+      if (activeSeoPage.bhkFilter && h.bhk !== activeSeoPage.bhkFilter) {
+        return false;
+      }
+      if (
+        activeSeoPage.maxRentFilter &&
+        h.rentPrice > activeSeoPage.maxRentFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+    return filtered.length > 0 ? filtered : allHousesWithPhotos.slice(0, 6);
+  }, [activeSeoPage, allHousesWithPhotos]);
+
   // Handlers
   const handleSelectTakeOption = (cat: RentalCategory) => {
     setSelectedTakeCategory(cat);
-    setSearchQuery('');
     if (cat === 'hostel' || cat === 'bachelor') {
       refreshUserGps();
     }
@@ -987,7 +1276,7 @@ export default function App() {
     e.preventDefault();
     if (!user || !profile) return;
 
-    if (!profile.hasPaidOwnerFee) {
+    if (!profile.hasPaidOwnerFee && !isOwnerFreeActive) {
       setPaymentModal({ isOpen: true, purpose: 'owner_fee' });
       return;
     }
@@ -1235,13 +1524,23 @@ export default function App() {
     }
   };
 
-  const getDisplayedOwnerPhone = (house: HouseListingData): string => {
-    const canSee = Boolean(
+  const hasVerifiedSeekerPhone = Boolean(
+    user && profile?.phone && profile.phone.replace(/\D/g, '').length >= 10
+  );
+
+  const isFreeSeekerCategory = (cat: RentalCategory): boolean =>
+    cat === 'bachelor' || cat === 'hostel';
+
+  const isPhoneUnlocked = (house: HouseListingData): boolean =>
+    Boolean(
       profile?.hasPaidSeekerFee ||
         (user && house.ownerId === user.uid) ||
-        isAdminUser
+        isAdminUser ||
+        (isFreeSeekerCategory(house.category) && hasVerifiedSeekerPhone)
     );
-    if (!canSee) {
+
+  const getDisplayedOwnerPhone = (house: HouseListingData): string => {
+    if (!isPhoneUnlocked(house)) {
       return '+91 ••••• •••••';
     }
     if (house.isDemo) {
@@ -1250,12 +1549,33 @@ export default function App() {
     return unlockedPhones[house.id] || '+91 98450 71234';
   };
 
-  const isPhoneUnlocked = (house: HouseListingData): boolean =>
-    Boolean(
-      profile?.hasPaidSeekerFee ||
-        (user && house.ownerId === user.uid) ||
-        isAdminUser
-    );
+  const handleSaveFreeSeekerPhone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      await handleGoogleSignIn();
+      return;
+    }
+    const cleaned = freeSeekerPhoneInput.replace(/\D/g, '');
+    if (cleaned.length < 10) {
+      setFreeSeekerError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const formattedPhone = `+91 ${cleaned.slice(-10)}`;
+    setFreeSeekerSaving(true);
+    setFreeSeekerError(null);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        phone: formattedPhone,
+        updatedAt: serverTimestamp(),
+      });
+      setHouseOwnerPhone(formattedPhone);
+      setFreeSeekerModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    } finally {
+      setFreeSeekerSaving(false);
+    }
+  };
 
   const currentAd = activeAds[currentAdIndex] || activeAds[0] || null;
 
@@ -1352,9 +1672,14 @@ export default function App() {
             className="text-left block w-full p-5 pb-3 cursor-pointer"
           >
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-lg font-bold font-mono tabular-nums text-[#417545]">
-                ₹{house.rentPrice.toLocaleString('en-IN')}/mo
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold font-mono tabular-nums text-[#417545]">
+                  ₹{house.rentPrice}/-
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-[#EAF4E7] border border-[#DCEAD7] text-[11px] font-bold text-[#417545]">
+                  {house.bhk}
+                </span>
+              </div>
               <span className="text-xs text-[#5C6B5E]">
                 {house.category === 'hostel' || house.category === 'bachelor'
                   ? `${distanceKm} km away`
@@ -1401,6 +1726,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
+                if (isFreeSeekerCategory(house.category)) {
+                  setFreeSeekerError(null);
+                  setFreeSeekerPhoneInput(
+                    profile?.phone ? profile.phone.replace(/^\+91\s*/, '') : ''
+                  );
+                  setFreeSeekerModalOpen(true);
+                  return;
+                }
                 if (!user) {
                   setCurrentPage('login');
                 } else {
@@ -1412,7 +1745,11 @@ export default function App() {
               }}
               className="min-h-[38px] px-4 py-1.5 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold whitespace-nowrap cursor-pointer"
             >
-              Pay ₹49
+              {isFreeSeekerCategory(house.category)
+                ? user
+                  ? 'Enter Phone (Free)'
+                  : 'Login to View (Free)'
+                : 'Pay ₹49'}
             </button>
           ) : (
             <span className="text-xs font-semibold text-[#417545]">Unlocked</span>
@@ -1446,7 +1783,7 @@ export default function App() {
                     RENT<span className="text-[#00B353]">BOX</span>
                   </span>
                   <span className="block text-[11px] font-medium text-[#417545] mt-0.5">
-                    Your home, in a box · మీ ఇల్లు, ఒకే బాక్స్‌లో
+                    Your home, in a box{showTelugu ? ' · మీ ఇల్లు, ఒకే బాక్స్‌లో' : ''}
                   </span>
                 </div>
               </button>
@@ -1490,20 +1827,33 @@ export default function App() {
                 </button>
               </nav>
 
-              {/* Zone 3: Saved button moved beside Sign In + Top-Right 3-Lines Services Menu */}
-              <div className="relative flex items-center gap-2.5 shrink-0">
+              {/* Zone 3: Telugu Toggle (తె ON) + Homepage button + Sign In + 3-Lines Menu */}
+              <div className="relative flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setCurrentPage('saved')}
-                  aria-label="Saved houses"
+                  onClick={() => setShowTelugu((prev) => !prev)}
+                  aria-label="Toggle Telugu"
+                  className={`min-h-[40px] px-3 py-1.5 rounded-full border text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    showTelugu
+                      ? 'bg-[#EAF4E7] border-[#417545] text-[#417545]'
+                      : 'border-[#DCEAD7] bg-white text-[#5C6B5E] hover:bg-[#F5FAF3]'
+                  }`}
+                >
+                  {showTelugu ? 'తె ON' : 'తె OFF'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage('home')}
+                  aria-label="Homepage"
                   className={`min-h-[42px] px-3.5 py-2 rounded-full border text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                    currentPage === 'saved'
+                    currentPage === 'home' && !activeSeoPage
                       ? 'bg-[#EAF4E7] border-[#417545] text-[#417545]'
                       : 'border-[#DCEAD7] bg-white hover:bg-[#EAF4E7] text-[#417545]'
                   }`}
                 >
-                  <Heart className="w-3.5 h-3.5 fill-[#417545]" />
-                  <span>Saved ({savedHouseIds.length})</span>
+                  <HomeIcon className="w-3.5 h-3.5" />
+                  <span>Home</span>
                 </button>
 
                 <button
@@ -1514,11 +1864,11 @@ export default function App() {
                   {user ? `${profile?.points ?? 0} pts` : 'Sign In'}
                 </button>
 
-                {/* 2. 3-Lines Menu Icon at the Top Right Corner for Our Services */}
+                {/* 3-Lines Menu Icon at the Top Right Corner */}
                 <button
                   type="button"
                   onClick={() => setShowTopRightServicesMenu((prev) => !prev)}
-                  aria-label="Open Our Services menu"
+                  aria-label="Open menu"
                   className="min-h-[42px] min-w-[42px] rounded-xl border border-[#DCEAD7] bg-white hover:bg-[#EAF4E7] text-[#141A15] flex items-center justify-center transition-colors cursor-pointer"
                 >
                   {showTopRightServicesMenu ? (
@@ -1528,12 +1878,12 @@ export default function App() {
                   )}
                 </button>
 
-                {/* Top-Right Corner Dropdown Drawer for Our Services */}
+                {/* Top-Right Corner 3-Lines Dropdown Drawer */}
                 {showTopRightServicesMenu && (
-                  <div className="absolute right-0 top-14 z-50 w-72 rounded-3xl border border-[#DCEAD7] bg-white p-4 shadow-xl space-y-2.5">
+                  <div className="absolute right-0 top-14 z-50 w-80 rounded-3xl border border-[#DCEAD7] bg-white p-4 shadow-xl space-y-2.5">
                     <div className="flex items-center justify-between px-1 pb-1 border-b border-[#EAF4E7]">
                       <span className="text-xs font-bold text-[#417545]">
-                        Our Services · మా సేవలు
+                        Menu & Our Services{showTelugu ? ' · మా సేవలు' : ''}
                       </span>
                       <button
                         type="button"
@@ -1543,6 +1893,56 @@ export default function App() {
                         Close
                       </button>
                     </div>
+
+                    {/* Saved Button moved inside 3-lines menu (No Telugu on buttons) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTopRightServicesMenu(false);
+                        setCurrentPage('saved');
+                      }}
+                      className="w-full rounded-2xl border border-[#DCEAD7] bg-[#F9FCF8] hover:border-[#417545] p-3 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
+                          <Heart className="w-4 h-4 fill-[#417545]" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-[#141A15]">
+                            Saved Houses ({savedHouseIds.length})
+                          </p>
+                          <p className="text-[11px] text-[#5C6B5E]">
+                            View your saved listings
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#5C6B5E]" />
+                    </button>
+
+                    {/* Open Filter Sidebar Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTopRightServicesMenu(false);
+                        setShowFilterSidebar(true);
+                      }}
+                      className="w-full rounded-2xl border border-[#DCEAD7] bg-[#F9FCF8] hover:border-[#417545] p-3 flex items-center justify-between gap-3 text-left transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
+                          <SearchIcon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-[#141A15]">
+                            Filter Rent & Rooms
+                          </p>
+                          <p className="text-[11px] text-[#5C6B5E]">
+                            Rent Price & Rooms (1BHK, 2BHK, 3BHK)
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#5C6B5E]" />
+                    </button>
 
                     {/* Service 1: Rental Agreement */}
                     <button
@@ -1554,14 +1954,14 @@ export default function App() {
                       }}
                       className="w-full rounded-2xl border border-[#DCEAD7] bg-[#F9FCF8] hover:border-[#417545] p-3 flex items-center gap-3 text-left transition-colors cursor-pointer"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4" />
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[#141A15]">
                           Rental Agreement
                         </p>
-                        <p className="text-[11px] text-[#5C6B5E]">అద్దె ఒప్పందం</p>
+                        <p className="text-[11px] text-[#5C6B5E]">Quick online agreement</p>
                       </div>
                     </button>
 
@@ -1575,14 +1975,14 @@ export default function App() {
                       }}
                       className="w-full rounded-2xl border border-[#DCEAD7] bg-[#F9FCF8] hover:border-[#417545] p-3 flex items-center gap-3 text-left transition-colors cursor-pointer"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
-                        <Truck className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-[#EAF4E7] text-[#417545] flex items-center justify-center shrink-0">
+                        <Truck className="w-4 h-4" />
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[#141A15]">
                           Packers & Movers
                         </p>
-                        <p className="text-[11px] text-[#5C6B5E]">ఇల్లు షిఫ్టింగ్</p>
+                        <p className="text-[11px] text-[#5C6B5E]">Safe house shifting</p>
                       </div>
                     </button>
 
@@ -1595,8 +1995,8 @@ export default function App() {
                       }}
                       className="w-full rounded-2xl border border-[#417545] bg-[#EAF4E7] hover:bg-[#DCEAD7] p-3 flex items-center gap-3 text-left transition-colors cursor-pointer"
                     >
-                      <div className="w-10 h-10 rounded-xl bg-[#417545] text-white flex items-center justify-center shrink-0">
-                        <Sparkles className="w-5 h-5" />
+                      <div className="w-9 h-9 rounded-xl bg-[#417545] text-white flex items-center justify-center shrink-0">
+                        <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[#141A15]">
@@ -1607,6 +2007,36 @@ export default function App() {
                         </p>
                       </div>
                     </button>
+
+                    {/* Separate Button in 3-lines section with small text size */}
+                    <div className="pt-1 border-t border-[#EAF4E7] space-y-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPopularSearchesInMenu((prev) => !prev)
+                        }
+                        className="w-full rounded-xl border border-[#DCEAD7] bg-[#F5FAF3] hover:border-[#417545] px-3 py-2 flex items-center justify-between gap-2 text-left transition-colors cursor-pointer"
+                      >
+                        <span className="text-[11px] font-semibold text-[#417545] truncate">
+                          Popular Searches in Hyderabad
+                        </span>
+                        <ChevronRight
+                          className={`w-3.5 h-3.5 text-[#417545] transition-transform shrink-0 ${
+                            showPopularSearchesInMenu ? 'rotate-90' : ''
+                          }`}
+                        />
+                      </button>
+
+                      {showPopularSearchesInMenu && (
+                        <PopularSearchesSection
+                          currentSlug={activeSeoPage?.slug}
+                          onSelectLink={() => {
+                            setShowTopRightServicesMenu(false);
+                            setShowPopularSearchesInMenu(false);
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1632,25 +2062,63 @@ export default function App() {
 
         {/* Main Content Container */}
         <main className="max-w-5xl mx-auto px-6 pt-6 pb-12">
-          {/* PAGE 1: HOME SCREEN */}
-          {currentPage === 'home' && (
+          {/* DEDICATED HYDERABAD SEO KEYWORD PAGE (When URL matches any of the 47 SEO slugs) */}
+          {activeSeoPage && (
             <div className="space-y-8">
-              {/* 1. TOP BANNER SLIDESHOW (Includes the newly attached banners sliding one by one) */}
+              <div className="rounded-3xl border border-[#DCEAD7] bg-[#F5FAF3] p-6 sm:p-8 space-y-3 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#DCEAD7] text-xs font-bold text-[#417545]">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Hyderabad Verified Rentals · నో బ్రోకర్</span>
+                  </span>
+                  <Link
+                    to="/"
+                    className="text-xs font-semibold text-[#417545] hover:underline"
+                  >
+                    ← Back to RENTBOX Home
+                  </Link>
+                </div>
+
+                {/* Single H1 with the exact keyword */}
+                <h1 className="text-2xl sm:text-3xl font-bold text-[#141A15]">
+                  {activeSeoPage.h1}
+                </h1>
+
+                {/* Short 2-line intro in simple English */}
+                <div className="text-sm text-[#5C6B5E] space-y-1 leading-relaxed max-w-3xl">
+                  <p>{activeSeoPage.introLine1}</p>
+                  <p>{activeSeoPage.introLine2}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-[#141A15]">
+                    Matching Rental Properties ({seoMatchedListings.length})
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage('search')}
+                    className="text-xs font-bold text-[#417545] hover:underline cursor-pointer"
+                  >
+                    Open Full Filter Search →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {seoMatchedListings.map((house) => renderHouseCard(house))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PAGE 1: HOME SCREEN (Only when not viewing a dedicated SEO keyword page) */}
+          {!activeSeoPage && currentPage === 'home' && (
+            <div className="space-y-8">
+              {/* 1. TOP BANNER SLIDESHOW (Includes the newly attached homepage-banner_b2030f63.png sliding one by one) */}
               <section className="relative rounded-3xl overflow-hidden border border-[#DCEAD7] bg-[#F1F9F1] shadow-xs">
-                <div
-                  className={`flex w-[500%] transition-transform duration-500 ease-out ${
-                    heroBannerIndex === 0
-                      ? 'translate-x-0'
-                      : heroBannerIndex === 1
-                      ? '-translate-x-[20%]'
-                      : heroBannerIndex === 2
-                      ? '-translate-x-[40%]'
-                      : heroBannerIndex === 3
-                      ? '-translate-x-[60%]'
-                      : '-translate-x-[80%]'
-                  }`}
-                >
-                  {TOP_HERO_BANNERS.map((banner) => (
+                <div className="grid grid-cols-1">
+                  {TOP_HERO_BANNERS.map((banner, idx) => (
                     <button
                       key={banner.id}
                       type="button"
@@ -1662,7 +2130,11 @@ export default function App() {
                         }
                       }}
                       aria-label={banner.alt}
-                      className="w-1/5 shrink-0 block text-left cursor-pointer overflow-hidden"
+                      className={`col-start-1 row-start-1 w-full block text-left cursor-pointer overflow-hidden transition-opacity duration-500 ${
+                        idx === heroBannerIndex
+                          ? 'opacity-100 z-10'
+                          : 'opacity-0 pointer-events-none z-0'
+                      }`}
                     >
                       <img
                         src={banner.imageUrl}
@@ -1674,7 +2146,7 @@ export default function App() {
                 </div>
 
                 {/* Slide Indicator Dots */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-xs px-3 py-1.5 rounded-full border border-[#DCEAD7]">
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/80 backdrop-blur-xs px-3 py-1.5 rounded-full border border-[#DCEAD7]">
                   {TOP_HERO_BANNERS.map((banner, idx) => (
                     <button
                       key={banner.id}
@@ -1691,17 +2163,20 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 6. 3-IMAGE SHOWCASE BANNER FOR JUST ADDED HOUSES (Below Top Take Rent Banner) */}
+              {/* 6. 6-IMAGE SHOWCASE BANNER FOR RECENTLY ADDED HOUSES (Under 4500/-, 8000/-, 12000/-) */}
               <section className="rounded-3xl border border-[#DCEAD7] bg-[#F5FAF3] p-4 sm:p-5 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-sm sm:text-base font-bold text-[#141A15]">
-                      Just Added Houses · కొత్తగా చేర్చిన ఇళ్లు
+                      Recently Added Houses{showTelugu ? ' · కొత్తగా చేర్చిన ఇళ్లు' : ''}
                     </h2>
+                    <p className="text-xs text-[#5C6B5E]">
+                      Under 4500/-, 8000/-, 12000/-
+                    </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCurrentPage('take_options')}
+                    onClick={() => setCurrentPage('search')}
                     className="text-xs font-semibold text-[#417545] hover:underline inline-flex items-center gap-1 cursor-pointer"
                   >
                     <span>View All</span>
@@ -1709,8 +2184,8 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
-                  {allHousesWithPhotos.slice(0, 3).map((house) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+                  {recentlyAddedShowcaseHouses.map((house) => (
                     <button
                       key={house.id}
                       type="button"
@@ -1731,11 +2206,11 @@ export default function App() {
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
                       <span className="absolute top-2 left-2 bg-white/95 px-2 py-0.5 rounded-md text-[10px] font-bold text-[#417545]">
-                        Updated today
+                        {house.bhk}
                       </span>
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 sm:p-3">
-                        <p className="text-white font-bold font-mono text-xs sm:text-sm leading-tight">
-                          ₹{house.rentPrice.toLocaleString('en-IN')}/mo
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-2.5 sm:p-3">
+                        <p className="text-white font-bold font-mono text-xs sm:text-base leading-tight">
+                          {house.rentPrice}/-
                         </p>
                         <p className="text-white/90 text-[10px] sm:text-xs truncate">
                           {house.location}
@@ -1746,7 +2221,104 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 1. THREE MAIN CARDS (Take Rent, Give Rent, Rental Heroes with attached diagonal pattern) */}
+              {/* HOME SEARCH BOX (Filter Rent Price & Rooms moved to Sidebar option) */}
+              <section className="rounded-3xl border border-[#DCEAD7] bg-white p-5 space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <SearchIcon className="w-5 h-5 text-[#5C6B5E] absolute left-4 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search city or area (e.g. Alwal)..."
+                      className="w-full h-12 pl-12 pr-4 rounded-2xl border border-[#DCEAD7] bg-[#F5FAF3] text-sm text-[#141A15] placeholder:text-[#5C6B5E] focus:bg-white focus:outline-none focus:border-[#417545]"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('Alwal');
+                        setCurrentPage('search');
+                      }}
+                      className="min-h-[44px] px-4 rounded-2xl bg-[#EAF4E7] border border-[#DCEAD7] text-xs font-semibold text-[#417545] hover:bg-[#DCEAD7] cursor-pointer whitespace-nowrap"
+                    >
+                      Search Alwal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowFilterSidebar(true)}
+                      className="min-h-[44px] px-4 rounded-2xl bg-[#F5FAF3] border border-[#DCEAD7] text-xs font-bold text-[#141A15] hover:bg-[#EAF4E7] flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <Menu className="w-4 h-4 text-[#417545]" />
+                      <span>
+                        Filters
+                        {selectedRentFilter !== 'all' ||
+                        selectedBhkFilter !== 'all'
+                          ? ` (${
+                              selectedRentFilter !== 'all'
+                                ? `<${selectedRentFilter}`
+                                : ''
+                            }${
+                              selectedRentFilter !== 'all' &&
+                              selectedBhkFilter !== 'all'
+                                ? ', '
+                                : ''
+                            }${
+                              selectedBhkFilter !== 'all'
+                                ? selectedBhkFilter
+                                : ''
+                            })`
+                          : ''}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage('search')}
+                      className="min-h-[44px] px-5 rounded-2xl bg-[#417545] hover:bg-[#356139] text-white text-xs font-bold cursor-pointer whitespace-nowrap"
+                    >
+                      Search Houses
+                    </button>
+                  </div>
+                </div>
+
+                {/* Alwal Nearby Localities Light Box when "Alwal" is typed */}
+                {isAlwalSearch && (
+                  <div className="rounded-2xl bg-[#F5FAF3] border border-[#DCEAD7] p-4 space-y-2">
+                    <p className="text-xs font-semibold text-[#5C6B5E]">
+                      Add more...
+                    </p>
+                    <p className="text-xs font-bold text-[#417545]">
+                      Nearby Localities :
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {ALWAL_NEARBY_LOCALITIES.map((locality) => {
+                        const isSelected =
+                          selectedNearbyLocalities.includes(locality);
+                        return (
+                          <button
+                            key={locality}
+                            type="button"
+                            onClick={() => {
+                              toggleNearbyLocality(locality);
+                              setCurrentPage('search');
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#DCEAD7] border-[#417545] text-[#141A15]'
+                                : 'bg-[#EAF4E7]/70 border-[#DCEAD7] text-[#417545] hover:bg-[#EAF4E7]'
+                            }`}
+                          >
+                            + {locality}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* 1. THREE MAIN CARDS (Take Rent, Give Rent, Rental Heroes with attached diagonal pattern — No Telugu on buttons) */}
               <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* 1. Take Rent */}
                 <button
@@ -1765,7 +2337,7 @@ export default function App() {
                   </div>
                   <div className="relative z-10">
                     <p className="text-xs font-medium text-[#5C6B5E] mb-1">
-                      I need a place · అద్దెకు ఇల్లు కావాలి
+                      I need a place
                     </p>
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="text-2xl font-bold text-[#141A15]">
@@ -1793,7 +2365,7 @@ export default function App() {
                   </div>
                   <div className="relative z-10">
                     <p className="text-xs font-medium text-[#5C6B5E] mb-1">
-                      I am an owner · ఇల్లు అద్దెకు ఇవ్వండి
+                      I am an owner
                     </p>
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="text-2xl font-bold text-[#141A15]">
@@ -1821,7 +2393,7 @@ export default function App() {
                   </div>
                   <div className="relative z-10">
                     <p className="text-xs font-medium text-[#417545] mb-1">
-                      Earn points · పాయింట్లు గెలుచుకోండి
+                      Earn points
                     </p>
                     <div className="flex items-center justify-between gap-2">
                       <h2 className="text-2xl font-bold text-[#141A15]">
@@ -1932,7 +2504,7 @@ export default function App() {
                       <p className="text-base sm:text-lg font-bold text-[#141A15]">
                         Advertise here. Call{' '}
                         <a
-                          href={`tel:${CONTACT_TEL}`}
+                          href={`tel:${CONTACT_PRIMARY_TEL}`}
                           className="text-[#417545] underline font-mono"
                         >
                           {CONTACT_NUMBER}
@@ -2039,12 +2611,12 @@ export default function App() {
           )}
 
           {/* PAGE 2: TAKE RENT OPTIONS (4 Big Option Cards) */}
-          {currentPage === 'take_options' && (
+          {!activeSeoPage && currentPage === 'take_options' && (
             <div className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-[#417545]">
-                    Take Rent · అద్దెకు కావాలి
+                    Take Rent{showTelugu ? ' · అద్దెకు కావాలి' : ''}
                   </p>
                   <h1 className="text-2xl font-bold text-[#141A15] mt-0.5">
                     What kind of place do you need?
@@ -2082,8 +2654,7 @@ export default function App() {
                       </div>
                       <div className="relative z-10">
                         <p className="text-xs font-medium text-[#5C6B5E] mb-1">
-                          {CATEGORY_META[cat].takeSubtitle} ·{' '}
-                          {CATEGORY_META[cat].takeTelugu}
+                          {CATEGORY_META[cat].takeSubtitle}
                         </p>
                         <div className="flex items-center justify-between gap-2">
                           <h2 className="text-2xl font-bold text-[#141A15]">
@@ -2100,7 +2671,7 @@ export default function App() {
           )}
 
           {/* PAGE 3: SEARCH LISTINGS PAGE */}
-          {currentPage === 'search' && (
+          {!activeSeoPage && currentPage === 'search' && (
             <div className="space-y-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2116,8 +2687,8 @@ export default function App() {
                     <span>{CATEGORY_META[selectedTakeCategory].takeTitle}</span>
                   </div>
                   <h1 className="text-2xl font-bold text-[#141A15] mt-1">
-                    {CATEGORY_META[selectedTakeCategory].takeTitle} ·{' '}
-                    {CATEGORY_META[selectedTakeCategory].takeTelugu}
+                    {CATEGORY_META[selectedTakeCategory].takeTitle}
+                    {showTelugu ? ` · ${CATEGORY_META[selectedTakeCategory].takeTelugu}` : ''}
                   </h1>
                   <p className="text-xs text-[#5C6B5E] mt-0.5">
                     {CATEGORY_META[selectedTakeCategory].ruleHint}
@@ -2137,35 +2708,128 @@ export default function App() {
                     </button>
                   )}
 
-                  {!profile?.hasPaidSeekerFee && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!user) {
-                          setCurrentPage('login');
-                        } else {
-                          setPaymentModal({ isOpen: true, purpose: 'seeker_fee' });
-                        }
-                      }}
-                      className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Unlock Numbers · ₹49</span>
-                    </button>
+                  {isFreeSeekerCategory(selectedTakeCategory) ? (
+                    !hasVerifiedSeekerPhone && !profile?.hasPaidSeekerFee && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFreeSeekerError(null);
+                          setFreeSeekerPhoneInput(
+                            profile?.phone ? profile.phone.replace(/^\+91\s*/, '') : ''
+                          );
+                          setFreeSeekerModalOpen(true);
+                        }}
+                        className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>
+                          {user ? 'Enter Phone to Unlock (Free)' : 'Login & Enter Phone (Free)'}
+                        </span>
+                      </button>
+                    )
+                  ) : (
+                    !profile?.hasPaidSeekerFee && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!user) {
+                            setCurrentPage('login');
+                          } else {
+                            setPaymentModal({ isOpen: true, purpose: 'seeker_fee' });
+                          }
+                        }}
+                        className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Unlock Numbers · ₹49</span>
+                      </button>
+                    )
                   )}
                 </div>
               </div>
 
-              {/* Single Clean Search Input (Search by city or area, no filters) */}
-              <div className="relative">
-                <SearchIcon className="w-5 h-5 text-[#5C6B5E] absolute left-5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by city or area..."
-                  className="w-full h-14 pl-14 pr-5 rounded-3xl border border-[#DCEAD7] bg-[#F5FAF3] text-base text-[#141A15] placeholder:text-[#5C6B5E] focus:bg-white focus:outline-none focus:border-[#417545] transition-colors"
-                />
+              {/* Search Input + Sidebar Filter Trigger (Filter Rent Price & Rooms opened in Sidebar) */}
+              <div className="rounded-3xl border border-[#DCEAD7] bg-white p-5 space-y-4 shadow-xs">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <SearchIcon className="w-5 h-5 text-[#5C6B5E] absolute left-5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by city or area (try Alwal)..."
+                      className="w-full h-13 pl-13 pr-5 rounded-2xl border border-[#DCEAD7] bg-[#F5FAF3] text-base text-[#141A15] placeholder:text-[#5C6B5E] focus:bg-white focus:outline-none focus:border-[#417545] transition-colors"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('Alwal')}
+                      className="min-h-[48px] px-4 rounded-2xl bg-[#EAF4E7] border border-[#DCEAD7] text-xs font-bold text-[#417545] hover:bg-[#DCEAD7] cursor-pointer whitespace-nowrap"
+                    >
+                      Try &ldquo;Alwal&rdquo;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowFilterSidebar(true)}
+                      className="min-h-[48px] px-4 rounded-2xl bg-[#417545] hover:bg-[#356139] text-white text-xs font-bold flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                    >
+                      <Menu className="w-4 h-4" />
+                      <span>
+                        Filter Sidebar
+                        {selectedRentFilter !== 'all' ||
+                        selectedBhkFilter !== 'all'
+                          ? ` (${
+                              selectedRentFilter !== 'all'
+                                ? `<${selectedRentFilter}`
+                                : ''
+                            }${
+                              selectedRentFilter !== 'all' &&
+                              selectedBhkFilter !== 'all'
+                                ? ', '
+                                : ''
+                            }${
+                              selectedBhkFilter !== 'all'
+                                ? selectedBhkFilter
+                                : ''
+                            })`
+                          : ''}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. When searching Alwal, give nearby location suggestions in a light color */}
+                {isAlwalSearch && (
+                  <div className="rounded-2xl bg-[#F5FAF3] border border-[#DCEAD7] p-4 space-y-1.5">
+                    <p className="text-xs font-semibold text-[#5C6B5E]">
+                      Add more...
+                    </p>
+                    <p className="text-xs font-bold text-[#417545]">
+                      Nearby Localities :
+                    </p>
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 pt-1">
+                      {ALWAL_NEARBY_LOCALITIES.map((locality) => {
+                        const isSelected =
+                          selectedNearbyLocalities.includes(locality);
+                        return (
+                          <button
+                            key={locality}
+                            type="button"
+                            onClick={() => toggleNearbyLocality(locality)}
+                            className={`text-left px-3.5 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#DCEAD7] border-[#417545] text-[#141A15]'
+                                : 'bg-[#EAF4E7]/65 border-[#DCEAD7] text-[#417545] hover:bg-[#EAF4E7]'
+                            }`}
+                          >
+                            + {locality}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {categoryListings.length === 0 ? (
@@ -2174,13 +2838,21 @@ export default function App() {
                     No {CATEGORY_META[selectedTakeCategory].takeTitle.toLowerCase()}{' '}
                     listings found
                   </p>
-                  {searchQuery && (
+                  {(searchQuery ||
+                    selectedRentFilter !== 'all' ||
+                    selectedBhkFilter !== 'all' ||
+                    selectedNearbyLocalities.length > 0) && (
                     <button
                       type="button"
-                      onClick={() => setSearchQuery('')}
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedRentFilter('all');
+                        setSelectedBhkFilter('all');
+                        setSelectedNearbyLocalities([]);
+                      }}
                       className="mt-4 min-h-[44px] px-5 py-2 rounded-full bg-[#EAF4E7] text-xs font-semibold text-[#417545] hover:bg-[#DCEAD7] transition-colors cursor-pointer"
                     >
-                      Clear Search
+                      Reset Filters
                     </button>
                   )}
                 </div>
@@ -2193,7 +2865,7 @@ export default function App() {
           )}
 
           {/* SAVED PAGE (For Hearted Houses) */}
-          {currentPage === 'saved' && (
+          {!activeSeoPage && currentPage === 'saved' && (
             <div className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
@@ -2232,7 +2904,7 @@ export default function App() {
           )}
 
           {/* PAGE 4: HOUSE DETAIL PAGE */}
-          {currentPage === 'detail' && selectedHouse && (
+          {!activeSeoPage && currentPage === 'detail' && selectedHouse && (
             <div className="space-y-8 max-w-3xl mx-auto">
               <div className="flex items-center justify-between">
                 <button
@@ -2333,6 +3005,16 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => {
+                          if (isFreeSeekerCategory(selectedHouse.category)) {
+                            setFreeSeekerError(null);
+                            setFreeSeekerPhoneInput(
+                              profile?.phone
+                                ? profile.phone.replace(/^\+91\s*/, '')
+                                : ''
+                            );
+                            setFreeSeekerModalOpen(true);
+                            return;
+                          }
                           if (!user) {
                             setCurrentPage('login');
                           } else {
@@ -2345,7 +3027,13 @@ export default function App() {
                         className="min-h-[48px] px-6 py-3 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                       >
                         <Lock className="w-4 h-4" />
-                        <span>Pay ₹49 to Unlock Phone</span>
+                        <span>
+                          {isFreeSeekerCategory(selectedHouse.category)
+                            ? user
+                              ? 'Enter Phone to Unlock Free'
+                              : 'Login & Enter Phone (Free)'
+                            : 'Pay ₹49 to Unlock Phone'}
+                        </span>
                       </button>
                     ) : (
                       <a
@@ -2382,12 +3070,12 @@ export default function App() {
           )}
 
           {/* PAGE 5: GIVE RENT OPTIONS (3 Big Option Cards: Family, Commercial, Bachelor) */}
-          {currentPage === 'give_options' && (
+          {!activeSeoPage && currentPage === 'give_options' && (
             <div className="space-y-8">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-[#417545]">
-                    Give Rent · అద్దెకు ఇవ్వండి
+                    Give Rent{showTelugu ? ' · అద్దెకు ఇవ్వండి' : ''}
                   </p>
                   <h1 className="text-2xl font-bold text-[#141A15] mt-0.5">
                     Select Property Category
@@ -2400,6 +3088,15 @@ export default function App() {
                 >
                   ← Back
                 </button>
+              </div>
+
+              {/* 8. 2nd Image in Give Rent page at top of the Family Button */}
+              <div className="rounded-3xl overflow-hidden border border-[#DCEAD7] bg-[#F5FAF3] shadow-xs">
+                <img
+                  src="/assets/aistudio/post_your_house_7bd662c1.png"
+                  alt="Post your house FREE for 3 months · మీ ఇంటిని 3 నెలల పాటు ఉచితంగా పోస్ట్ చేయండి"
+                  className="w-full h-auto object-cover block"
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2441,7 +3138,7 @@ export default function App() {
           )}
 
           {/* PAGE 6: OWNER DASHBOARD */}
-          {currentPage === 'owner' && (
+          {!activeSeoPage && currentPage === 'owner' && (
             <div className="space-y-8 max-w-3xl mx-auto">
               <div className="flex items-center justify-between">
                 <div>
@@ -2469,6 +3166,15 @@ export default function App() {
                 </button>
               </div>
 
+              {/* FREE FOR OWNERS IMAGE BANNER ON OWNER DASHBOARD */}
+              <div className="rounded-3xl overflow-hidden border border-[#DCEAD7] bg-[#F5FAF3] shadow-xs">
+                <img
+                  src="/assets/aistudio/post_your_house_7bd662c1.png"
+                  alt="Post your house FREE for 3 months · మీ ఇంటిని 3 నెలల పాటు ఉచితంగా పోస్ట్ చేయండి"
+                  className="w-full h-auto object-cover block"
+                />
+              </div>
+
               {!user ? (
                 <div className="rounded-3xl border border-[#DCEAD7] p-8 text-center space-y-4">
                   <KeyRound className="w-10 h-10 text-[#417545] mx-auto" />
@@ -2476,7 +3182,7 @@ export default function App() {
                     Owner Sign In Required
                   </h2>
                   <p className="text-sm text-[#5C6B5E] max-w-md mx-auto">
-                    Sign in to verify your phone with OTP, pay the ₹49 registration fee, and publish your listing.
+                    Sign in to get 3 months FREE owner posting (90 days from sign-up), verify your phone with OTP, and publish your listing.
                   </p>
                   <button
                     type="button"
@@ -2542,38 +3248,46 @@ export default function App() {
                       )}
                     </div>
 
-                    {/* ₹49 Owner Fee Card */}
+                    {/* Owner Free 3-Month Status / ₹49 Registration Card */}
                     <div className="rounded-3xl border border-[#DCEAD7] p-6 flex flex-col justify-between space-y-4">
                       <div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-[#5C6B5E]">
-                            Step 2 · Owner Registration
+                            Step 2 · Owner Account Status
                           </span>
                           <span className="text-xs font-mono font-bold text-[#417545]">
-                            ₹49
+                            {isOwnerFreeActive ? 'FREE (3 Months)' : '₹49'}
                           </span>
                         </div>
                         <h3 className="text-base font-bold text-[#141A15] mt-2 flex items-center gap-1.5">
                           <span>
-                            {profile?.hasPaidOwnerFee
+                            {profile?.hasPaidOwnerFee || isOwnerFreeActive
                               ? 'Verified Owner Account'
                               : 'One-time ₹49 Owner Fee'}
                           </span>
-                          {profile?.hasPaidOwnerFee && (
+                          {(profile?.hasPaidOwnerFee || isOwnerFreeActive) && (
                             <BadgeCheck className="w-5 h-5 fill-[#417545] text-white" />
                           )}
                         </h3>
                         <p className="text-xs text-[#5C6B5E] mt-1">
-                          {profile?.hasPaidOwnerFee
+                          {isOwnerFreeActive
+                            ? `Post your house FREE for 3 months (${freeOwnerDaysLeft} days left).`
+                            : profile?.hasPaidOwnerFee
                             ? 'You can upload, edit, or remove your rental listings.'
                             : 'Pay ₹49 via UPI or Razorpay to publish your listing.'}
                         </p>
                       </div>
 
-                      {profile?.hasPaidOwnerFee ? (
-                        <div className="min-h-[44px] px-4 rounded-full bg-[#EAF4E7] text-[#417545] text-xs font-semibold flex items-center gap-2">
-                          <Check className="w-4 h-4" />
-                          <span>₹49 Registration Paid</span>
+                      {profile?.hasPaidOwnerFee || isOwnerFreeActive ? (
+                        <div className="min-h-[44px] px-4 rounded-full bg-[#EAF4E7] text-[#417545] text-xs font-semibold flex items-center justify-between gap-2">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Check className="w-4 h-4" />
+                            <span>
+                              {isOwnerFreeActive
+                                ? `FREE Owner Pass Active (${freeOwnerDaysLeft} days left)`
+                                : '₹49 Registration Paid'}
+                            </span>
+                          </span>
                         </div>
                       ) : (
                         <button
@@ -2833,221 +3547,19 @@ export default function App() {
           )}
 
           {/* PAGE 7: RENTAL HEROES */}
-          {currentPage === 'hero' && (
-            <div className="space-y-8 max-w-3xl mx-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-[#141A15]">
-                    Rental Heroes · ఫోటో తీసి గెలుచుకోండి
-                  </h1>
-                  <p className="text-sm text-[#5C6B5E]">
-                    Take a photo of a &ldquo;To-Let&rdquo; board or house with GPS. Earn 100 points & a scratch card on approval.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage('rewards')}
-                  className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#417545] text-white text-xs font-semibold flex items-center gap-2 self-start sm:self-auto cursor-pointer whitespace-nowrap"
-                >
-                  <Wallet className="w-4 h-4" />
-                  <span>{profile?.points ?? 0} Points · Scratch Cards</span>
-                </button>
-              </div>
-
-              <form
-                onSubmit={handleSubmitHeroUpload}
-                className="rounded-3xl border border-[#DCEAD7] p-6 sm:p-8 space-y-5"
-              >
-                <h2 className="text-lg font-bold text-[#141A15]">
-                  Upload To-Let Board Photo
-                </h2>
-
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                  <img
-                    src={heroPhoto}
-                    alt="To-Let upload preview"
-                    referrerPolicy="no-referrer"
-                    className="w-36 h-28 rounded-2xl object-cover border border-[#DCEAD7] shrink-0"
-                  />
-                  <div className="space-y-2">
-                    <label className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold inline-flex items-center gap-2 cursor-pointer">
-                      <Camera className="w-4 h-4" />
-                      <span>Take / Select Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleHeroPhotoChange}
-                        className="hidden"
-                      />
-                    </label>
-                    <p className="text-xs text-[#5C6B5E]">
-                      Clear photo of the To-Let board or house.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#141A15] mb-1.5">
-                      Street / Area Name
-                    </label>
-                    <input
-                      type="text"
-                      value={heroLocationText}
-                      onChange={(e) => setHeroLocationText(e.target.value)}
-                      placeholder="e.g. 80 Feet Road, Indiranagar"
-                      maxLength={140}
-                      className="w-full h-12 px-4 rounded-xl border border-[#DCEAD7] text-sm"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-[#141A15] mb-1.5">
-                      GPS Location Tag
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleDetectGps}
-                      className="w-full h-12 px-4 rounded-xl border border-[#DCEAD7] bg-[#F5FAF3] hover:bg-[#EAF4E7] text-left text-xs font-mono text-[#141A15] flex items-center justify-between cursor-pointer"
-                    >
-                      <span className="truncate">{gpsStatus}</span>
-                      <MapPin className="w-4 h-4 text-[#417545] shrink-0 ml-2" />
-                    </button>
-                  </div>
-                </div>
-
-                {heroMsg && (
-                  <p className="text-xs font-medium text-[#417545] bg-[#EAF4E7] border border-[#CFE3C8] rounded-xl px-4 py-2.5">
-                    {heroMsg}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={uploadingHero}
-                  className="w-full min-h-[48px] rounded-full bg-[#417545] hover:bg-[#356139] text-white font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>
-                    {uploadingHero ? 'Uploading...' : 'Submit To-Let Upload (+100 Pts)'}
-                  </span>
-                </button>
-              </form>
-
-              <div className="space-y-4">
-                <h2 className="text-lg font-bold text-[#141A15]">
-                  Past Uploads ({myHeroUploads.length})
-                </h2>
-                {myHeroUploads.length === 0 ? (
-                  <p className="text-sm text-[#5C6B5E]">
-                    No uploads yet. Upload a To-Let photo above to earn 100 points.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {myHeroUploads.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-2xl border border-[#DCEAD7] p-4 flex items-center justify-between gap-4"
-                      >
-                        <div className="flex items-center gap-4 min-w-0">
-                          <img
-                            src={item.photoUrl}
-                            alt={item.locationText}
-                            referrerPolicy="no-referrer"
-                            className="w-16 h-14 rounded-xl object-cover shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#141A15] truncate">
-                              {item.locationText}
-                            </p>
-                            <p className="text-xs font-mono text-[#5C6B5E]">
-                              GPS: {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)} ·{' '}
-                              <span className="capitalize">{item.status}</span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-sm font-bold font-mono tabular-nums text-[#417545]">
-                            +{item.pointsAwarded} pts
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {isAdminUser && (
-                <div className="rounded-3xl border border-[#DCEAD7] p-6 sm:p-8 space-y-4 bg-[#F5FAF3]">
-                  <div>
-                    <h2 className="text-lg font-bold text-[#141A15] flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-[#417545]" />
-                      <span>Admin Upload Approval</span>
-                    </h2>
-                    <p className="text-xs text-[#5C6B5E]">
-                      Approve real To-Let photos to credit 100 points & a scratch card.
-                    </p>
-                  </div>
-
-                  {pendingAdminUploads.length === 0 ? (
-                    <p className="text-xs text-[#5C6B5E]">No uploads in queue.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {pendingAdminUploads.map((u) => (
-                        <div
-                          key={u.id}
-                          className="rounded-2xl bg-white border border-[#DCEAD7] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <img
-                              src={u.photoUrl}
-                              alt={u.locationText}
-                              referrerPolicy="no-referrer"
-                              className="w-16 h-14 rounded-xl object-cover shrink-0"
-                            />
-                            <div>
-                              <p className="text-sm font-bold text-[#141A15]">
-                                {u.locationText}
-                              </p>
-                              <p className="text-xs text-[#5C6B5E] font-mono">
-                                By {u.userName} · Status: {u.status}
-                              </p>
-                            </div>
-                          </div>
-                          {u.status === 'pending' ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleAdminReviewUpload(u, 'approved')}
-                                className="min-h-[40px] px-4 py-2 rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-semibold cursor-pointer"
-                              >
-                                Approve (+100 pts)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleAdminReviewUpload(u, 'rejected')}
-                                className="min-h-[40px] px-4 py-2 rounded-full border border-[#DCEAD7] text-[#5C6B5E] hover:bg-[#EAF4E7] text-xs font-semibold cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs font-semibold capitalize text-[#417545]">
-                              {u.status}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+          {!activeSeoPage && currentPage === 'hero' && (
+            <RentalHeroesPage
+              user={user}
+              profile={profile}
+              isAdminUser={isAdminUser}
+              showTelugu={showTelugu}
+              onOpenScratchCards={() => setCurrentPage('rewards')}
+              onRequireLogin={() => setCurrentPage('login')}
+            />
           )}
 
           {/* PAGE 8: REWARDS & POINTS WALLET */}
-          {currentPage === 'rewards' && (
+          {!activeSeoPage && currentPage === 'rewards' && (
             <div className="space-y-8 max-w-3xl mx-auto">
               <div className="rounded-3xl bg-gradient-to-br from-[#417545] to-[#6DA34D] text-white p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
@@ -3058,7 +3570,7 @@ export default function App() {
                     {profile?.points ?? 0} Points
                   </h1>
                   <p className="text-xs text-[#EAF4E7] mt-1">
-                    Each approved upload = 100 points & 1 Scratch Card
+                    1000 points = ₹100 on PhonePe · Each approved upload also unlocks 1 Scratch Card
                   </p>
                 </div>
                 <button
@@ -3066,7 +3578,7 @@ export default function App() {
                   onClick={() => setCurrentPage('hero')}
                   className="min-h-[48px] px-6 py-3 rounded-full bg-white text-[#417545] text-xs font-bold cursor-pointer whitespace-nowrap"
                 >
-                  + Upload To-Let Photo
+                  ← Back to Rental Heroes
                 </button>
               </div>
 
@@ -3100,7 +3612,7 @@ export default function App() {
           )}
 
           {/* PAGE 9: LOGIN / ACCOUNT PAGE */}
-          {currentPage === 'login' && (
+          {!activeSeoPage && currentPage === 'login' && (
             <div className="max-w-md mx-auto">
               <div className="rounded-3xl border border-[#DCEAD7] bg-white p-8 space-y-6">
                 <div>
@@ -3115,7 +3627,7 @@ export default function App() {
                 {!user ? (
                   <div className="space-y-4 pt-2">
                     <p className="text-sm text-[#5C6B5E]">
-                      Sign in to unlock owner phone numbers, list your property for rent, or earn Rental Hero points.
+                      Sign in to unlock owner phone numbers, list your property FREE for 3 months, or earn Rental Hero points.
                     </p>
                     <button
                       type="button"
@@ -3131,7 +3643,9 @@ export default function App() {
                     <div className="rounded-2xl bg-[#EAF4E7] border border-[#CFE3C8] p-4 space-y-1">
                       <p className="text-sm font-bold text-[#141A15] flex items-center gap-1.5">
                         <span>{profile?.displayName || user.displayName}</span>
-                        {(profile?.hasPaidSeekerFee || profile?.hasPaidOwnerFee) && (
+                        {(profile?.hasPaidSeekerFee ||
+                          profile?.hasPaidOwnerFee ||
+                          isOwnerFreeActive) && (
                           <BadgeCheck className="w-4 h-4 fill-[#417545] text-white" />
                         )}
                       </p>
@@ -3151,9 +3665,13 @@ export default function App() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between py-2 border-b border-[#EAF4E7]">
-                        <span>Give Rent Registration (₹49)</span>
-                        <span className="font-semibold text-[#141A15]">
-                          {profile?.hasPaidOwnerFee ? 'Paid · Active' : 'Unpaid'}
+                        <span>Give Rent Owner Status</span>
+                        <span className="font-semibold text-[#417545]">
+                          {isOwnerFreeActive
+                            ? `FREE (${freeOwnerDaysLeft} days left)`
+                            : profile?.hasPaidOwnerFee
+                            ? 'Paid · Active'
+                            : 'Unpaid'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between py-2">
@@ -3177,52 +3695,215 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* 3. BOTTOM BANNER ("Own a house? Post it for just ₹49.") — Removed from bottom of Home page & Take Rent pages */}
+          {!activeSeoPage &&
+            currentPage !== 'home' &&
+            currentPage !== 'hero' &&
+            currentPage !== 'take_options' &&
+            currentPage !== 'search' &&
+            currentPage !== 'detail' && (
+              <section className="mt-10 rounded-3xl overflow-hidden border border-[#DCEAD7] bg-[#F5FAF3] shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage('give_options')}
+                  aria-label="Own a house? Post it for just ₹49. మీ ఇల్లు అద్దెకు ఇవ్వాలా? కేవలం ₹49 పోస్ట్ చేయండి."
+                  className="block w-full text-left cursor-pointer group overflow-hidden"
+                >
+                  <img
+                    src={GIVE_RENT_BANNER_IMAGE}
+                    alt="Own a house? Post it for just ₹49 · మీ ఇల్లు అద్దెకు ఇవ్వాలా? కేవలం ₹49 మాత్రమే."
+                    className="w-full h-auto object-cover block group-hover:scale-[1.01] transition-transform duration-200"
+                  />
+                </button>
+              </section>
+            )}
         </main>
       </div>
 
-      {/* FOOTER */}
+      {/* FILTER SIDEBAR DRAWER (Filter Rent Price & Filter Rent Rooms) */}
+      {showFilterSidebar && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#141A15]/45 backdrop-blur-xs">
+          <div className="w-full max-w-xs bg-white h-full border-l border-[#DCEAD7] p-6 flex flex-col justify-between overflow-y-auto shadow-2xl">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-[#EAF4E7]">
+                <div>
+                  <h3 className="text-base font-bold text-[#141A15]">
+                    Filters{showTelugu ? ' · ఫిల్టర్లు' : ''}
+                  </h3>
+                  <p className="text-xs text-[#5C6B5E]">
+                    Select rent price and rooms
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterSidebar(false)}
+                  aria-label="Close filter sidebar"
+                  className="min-h-[38px] min-w-[38px] rounded-xl border border-[#DCEAD7] flex items-center justify-center text-[#5C6B5E] hover:bg-[#EAF4E7] cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Filter Rent Price */}
+              <div className="space-y-2.5">
+                <p className="text-xs font-bold text-[#141A15]">
+                  Filter Rent Price
+                </p>
+                <div className="flex flex-col gap-2">
+                  {(['all', 4500, 8000, 12000] as const).map((price) => (
+                    <button
+                      key={String(price)}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRentFilter(price);
+                        if (currentPage !== 'search') {
+                          setCurrentPage('search');
+                        }
+                      }}
+                      className={`min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-bold border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedRentFilter === price
+                          ? 'bg-[#417545] border-[#417545] text-white'
+                          : 'bg-[#F5FAF3] border-[#DCEAD7] text-[#141A15] hover:bg-[#EAF4E7]'
+                      }`}
+                    >
+                      <span>
+                        {price === 'all' ? 'All Prices' : `Under ${price}/-`}
+                      </span>
+                      {selectedRentFilter === price && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filter Rent Rooms */}
+              <div className="space-y-2.5 pt-2 border-t border-[#EAF4E7]">
+                <p className="text-xs font-bold text-[#141A15]">
+                  Filter Rent Rooms
+                </p>
+                <div className="flex flex-col gap-2">
+                  {(['all', '1BHK', '2BHK', '3BHK'] as const).map((bhk) => (
+                    <button
+                      key={bhk}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBhkFilter(bhk);
+                        if (currentPage !== 'search') {
+                          setCurrentPage('search');
+                        }
+                      }}
+                      className={`min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-bold border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                        selectedBhkFilter === bhk
+                          ? 'bg-[#417545] border-[#417545] text-white'
+                          : 'bg-[#F5FAF3] border-[#DCEAD7] text-[#141A15] hover:bg-[#EAF4E7]'
+                      }`}
+                    >
+                      <span>{bhk === 'all' ? 'All Rooms' : bhk}</span>
+                      {selectedBhkFilter === bhk && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-[#EAF4E7] flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedRentFilter('all');
+                  setSelectedBhkFilter('all');
+                }}
+                className="flex-1 min-h-[44px] rounded-xl border border-[#DCEAD7] bg-[#F5FAF3] text-xs font-bold text-[#141A15] hover:bg-[#EAF4E7] cursor-pointer"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFilterSidebar(false)}
+                className="flex-1 min-h-[44px] rounded-xl bg-[#417545] hover:bg-[#356139] text-white text-xs font-bold cursor-pointer"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER (Styled to match reference image /assets/aistudio/footer_947fc15e.jpg) */}
       <footer className="border-t border-[#DCEAD7] bg-[#F5FAF3] py-10 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col items-center sm:items-start gap-6">
-          <div className="w-full flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
-            <div className="flex items-center gap-3 text-center sm:text-left">
+        <div className="max-w-5xl mx-auto space-y-8">
+          {/* Top Row: Left = Brand Logo & Tagline | Right = Stacked WhatsApp Box & Contact Us Box */}
+          <div className="w-full flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
+            {/* Left Brand Block */}
+            <div className="flex items-center gap-3.5 text-left">
               <img
                 src="/assets/aistudio/rentalbox_288054f0.png"
                 alt="RENTBOX Logo"
-                className="w-10 h-10 object-contain shrink-0"
+                className="w-11 h-11 object-contain shrink-0"
               />
               <div>
-                <p className="text-base font-bold text-[#141A15]">
+                <p className="text-lg font-bold tracking-tight text-[#141A15] leading-tight">
                   RENT<span className="text-[#00B353]">BOX</span>
                 </p>
-                <p className="text-xs text-[#5C6B5E]">
+                <p className="text-xs text-[#5C6B5E] mt-0.5">
                   Your home, in a box · మీ ఇల్లు, ఒకే బాక్స్‌లో
                 </p>
               </div>
             </div>
 
-            {/* 5. Big size WhatsApp number and "WhatsApp us for contact" */}
-            <a
-              href={`https://wa.me/${CONTACT_TEL.replace('+', '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-3xl bg-[#417545] hover:bg-[#356139] text-white px-6 py-4 flex items-center gap-4 transition-colors shadow-xs"
-            >
-              <span className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                <MessageCircle className="w-6 h-6 text-white" />
-              </span>
-              <div className="text-left">
-                <p className="text-xs font-semibold text-[#EAF4E7]">
-                  WhatsApp us for contact · సంప్రదించడానికి వాట్సాప్ చేయండి
+            {/* Right Stacked Contact Column (Green WhatsApp Box on top, White Contact Us Box below) */}
+            <div className="w-full md:w-auto flex flex-col items-stretch sm:items-end gap-3.5">
+              {/* Green WhatsApp Button */}
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-[360px] rounded-2xl bg-[#417545] hover:bg-[#356139] text-white px-5 py-3.5 flex items-center gap-3.5 transition-colors shadow-xs"
+              >
+                <span className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </span>
+                <div className="text-left">
+                  <p className="text-[11px] font-semibold text-[#EAF4E7]">
+                    Message Us on WhatsApp · వాట్సాప్ చేయండి
+                  </p>
+                  <p className="text-xl font-bold font-mono tabular-nums tracking-tight leading-tight mt-0.5">
+                    {WHATSAPP_NUMBER}
+                  </p>
+                </div>
+              </a>
+
+              {/* White Contact Us Card */}
+              <div className="w-full sm:w-[360px] rounded-2xl bg-white border border-[#DCEAD7] px-5 py-3.5 text-left shadow-xs">
+                <p className="text-[11px] font-semibold text-[#5C6B5E] flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-[#417545]" />
+                  <span>Contact Us · సంప్రదించండి</span>
                 </p>
-                <p className="text-xl sm:text-2xl font-bold font-mono tabular-nums tracking-tight mt-0.5">
-                  {CONTACT_NUMBER}
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xl font-bold font-mono tabular-nums text-[#141A15] leading-tight">
+                  <a
+                    href={`tel:${CONTACT_PRIMARY_TEL}`}
+                    className="hover:text-[#417545] transition-colors"
+                  >
+                    +8886388635,
+                  </a>
+                  <a
+                    href={`tel:${CONTACT_SECONDARY_TEL}`}
+                    className="hover:text-[#417545] transition-colors"
+                  >
+                    8999999333
+                  </a>
+                </div>
               </div>
-            </a>
+            </div>
           </div>
 
-          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#DCEAD7]">
-            {/* 4. Only Instagram and WhatsApp social icons */}
+          {/* Bottom Divider Row: Left = Social Icons | Right = Links + © 2026 RENTBOX */}
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#DCEAD7]">
+            {/* Left: Instagram & WhatsApp Circles */}
             <div className="flex items-center gap-3">
               <a
                 href="https://instagram.com"
@@ -3234,32 +3915,34 @@ export default function App() {
                 <Instagram className="w-5 h-5" />
               </a>
               <a
-                href={`https://wa.me/${CONTACT_TEL.replace('+', '')}`}
+                href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="WhatsApp"
+                aria-label="WhatsApp 8886388635"
                 className="w-11 h-11 rounded-full bg-white border border-[#DCEAD7] text-[#417545] hover:bg-[#EAF4E7] flex items-center justify-center transition-colors"
               >
                 <MessageCircle className="w-5 h-5" />
               </a>
             </div>
 
-            <div className="flex items-center gap-5 text-xs font-medium text-[#5C6B5E]">
-              {(['About', 'Contact', 'Terms', 'Privacy'] as const).map((topic) => (
-                <button
-                  key={topic}
-                  type="button"
-                  onClick={() => setFooterInfoTopic(topic)}
-                  className="hover:text-[#141A15] cursor-pointer"
-                >
-                  {topic}
-                </button>
-              ))}
+            {/* Right: Links row on top, © 2026 RENTBOX right-aligned below */}
+            <div className="flex flex-col items-center sm:items-end gap-2">
+              <div className="flex items-center gap-5 text-xs font-medium text-[#5C6B5E]">
+                {(['About', 'Contact', 'Terms', 'Privacy'] as const).map(
+                  (topic) => (
+                    <button
+                      key={topic}
+                      type="button"
+                      onClick={() => setFooterInfoTopic(topic)}
+                      className="hover:text-[#141A15] cursor-pointer"
+                    >
+                      {topic}
+                    </button>
+                  )
+                )}
+              </div>
+              <p className="text-xs text-[#5C6B5E]">© 2026 RENTBOX</p>
             </div>
-          </div>
-
-          <div className="w-full text-center sm:text-left text-xs text-[#5C6B5E]">
-            © 2026 RENTBOX
           </div>
         </div>
       </footer>
@@ -3469,6 +4152,78 @@ export default function App() {
           <span className="text-[10px] font-medium mt-1">Rewards</span>
         </button>
       </nav>
+
+      {/* Free Unlock Modal for Bachelors & Hostels (Login with Google + Enter Phone Number, No Payment) */}
+      {freeSeekerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#141A15]/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-[#DCEAD7] p-6 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#EAF4E7] text-[10px] font-bold text-[#417545]">
+                  FREE FOR BACHELORS & HOSTELS
+                </span>
+                <h3 className="text-base font-bold text-[#141A15] mt-1">
+                  Unlock Owner Phone Number
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFreeSeekerModalOpen(false)}
+                className="min-h-[36px] min-w-[36px] rounded-xl flex items-center justify-center text-[#5C6B5E] hover:bg-[#EAF4E7] cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#5C6B5E] leading-relaxed">
+              Bachelor and Hostel seekers do not need to pay ₹49. Simply sign in with Google and enter your 10-digit mobile number to view owner contact numbers.
+            </p>
+
+            {!user ? (
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full min-h-[46px] rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Login with Google</span>
+              </button>
+            ) : (
+              <form onSubmit={handleSaveFreeSeekerPhone} className="space-y-3">
+                <div className="rounded-xl bg-[#F5FAF3] border border-[#DCEAD7] px-3.5 py-2 text-xs text-[#417545] font-semibold">
+                  Signed in as {profile?.displayName || user.displayName || user.email}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#141A15] mb-1">
+                    Your 10-Digit Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={freeSeekerPhoneInput}
+                    onChange={(e) => setFreeSeekerPhoneInput(e.target.value)}
+                    placeholder="Enter 10-digit mobile number"
+                    maxLength={15}
+                    className="w-full h-11 px-3.5 rounded-xl border border-[#DCEAD7] text-sm font-mono"
+                    required
+                  />
+                </div>
+                {freeSeekerError && (
+                  <p className="text-xs font-semibold text-red-600">
+                    {freeSeekerError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={freeSeekerSaving}
+                  className="w-full min-h-[46px] rounded-full bg-[#417545] hover:bg-[#356139] text-white text-xs font-bold cursor-pointer"
+                >
+                  {freeSeekerSaving ? 'Saving...' : 'Unlock Phone Number (Free)'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* UPI / Razorpay ₹49 Checkout Modal */}
       <RazorpayModal

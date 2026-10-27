@@ -2,7 +2,7 @@
   "entities": {
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Private user account record storing registration fee status, phone number, and Rental Hero points.",
+      "description": "Private user account record storing registration fee status, 3-month free owner period, phone number, referral code, Area Agent role, Rented Bonus wallet, and Rental Hero points.",
       "type": "object",
       "properties": {
         "uid": {
@@ -34,7 +34,41 @@
         },
         "points": {
           "type": "number",
-          "description": "Total Rental Hero points balance."
+          "description": "Total approved Rental Hero points balance."
+        },
+        "freeUntil": {
+          "type": "number",
+          "description": "Epoch milliseconds until which the owner can post houses for free (3 months from sign-up)."
+        },
+        "referralCode": {
+          "type": "string",
+          "description": "Unique referral code for this user.",
+          "minLength": 4,
+          "maxLength": 20
+        },
+        "referredByCode": {
+          "type": "string",
+          "description": "Referral code of the friend who invited this user.",
+          "minLength": 0,
+          "maxLength": 20
+        },
+        "referralBonusCredited": {
+          "type": "boolean",
+          "description": "Whether the 50-point referral bonus has been credited after the first approved post."
+        },
+        "rentedBonusCash": {
+          "type": "number",
+          "description": "Extra ₹50 cash bonus earned when posted houses get a tenant."
+        },
+        "agentArea": {
+          "type": "string",
+          "description": "Assigned Area Agent locality name (empty if not an agent).",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "agentBonusPoints": {
+          "type": "number",
+          "description": "Cumulative +20 bonus points earned as an Area Agent."
         },
         "createdAt": {
           "type": "string",
@@ -193,7 +227,7 @@
     },
     "HeroUpload": {
       "title": "HeroUpload",
-      "description": "To-Let board or house photo uploaded with GPS coordinates by a Rental Hero.",
+      "description": "Live camera To-Let board photo uploaded with GPS coordinates and area name by a Rental Hero.",
       "type": "object",
       "properties": {
         "userId": {
@@ -211,9 +245,21 @@
         },
         "photoUrl": {
           "type": "string",
-          "description": "Photo data URL or image URL of the To-Let board.",
+          "description": "Live camera photo data URL of the To-Let board.",
           "minLength": 10,
           "maxLength": 700000
+        },
+        "photoHash": {
+          "type": "string",
+          "description": "Deterministic hash of the photo to block duplicate uploads.",
+          "minLength": 4,
+          "maxLength": 80
+        },
+        "areaName": {
+          "type": "string",
+          "description": "Locality / area name in Hyderabad (e.g. Kukatpally).",
+          "minLength": 2,
+          "maxLength": 80
         },
         "locationText": {
           "type": "string",
@@ -229,14 +275,28 @@
           "type": "number",
           "description": "GPS longitude coordinate."
         },
+        "isLiveCamera": {
+          "type": "boolean",
+          "description": "Whether the photo was captured directly from the live camera with GPS active."
+        },
         "status": {
           "type": "string",
-          "description": "Moderation status managed by admin.",
-          "enum": ["pending", "approved", "rejected"]
+          "description": "Moderation and rental status: pending, approved, rejected, or rented.",
+          "enum": ["pending", "approved", "rejected", "rented"]
         },
         "pointsAwarded": {
           "type": "number",
-          "description": "Points credited (0 while pending/rejected, 100 when approved)."
+          "description": "Points credited (0 while pending/rejected, 100 standard or 200 during Kukatpally Launch Offer)."
+        },
+        "rentedBonusAwarded": {
+          "type": "number",
+          "description": "₹50 bonus awarded when marked as Rented."
+        },
+        "referredByCode": {
+          "type": "string",
+          "description": "Optional referral code associated with the uploader.",
+          "minLength": 0,
+          "maxLength": 20
         },
         "createdAt": {
           "type": "string",
@@ -262,9 +322,147 @@
         "updatedAt"
       ]
     },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "description": "PhonePe withdrawal request created when a Rental Hero redeems 1000+ approved points (1000 points = ₹100).",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Requester UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Requester display name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "phonePeNumber": {
+          "type": "string",
+          "description": "10-digit PhonePe mobile number.",
+          "minLength": 10,
+          "maxLength": 15
+        },
+        "pointsRedeemed": {
+          "type": "number",
+          "description": "Points redeemed (minimum 1000)."
+        },
+        "amountInr": {
+          "type": "number",
+          "description": "INR payout amount (₹100 per 1000 points)."
+        },
+        "status": {
+          "type": "string",
+          "description": "Withdrawal payout status.",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "userId",
+        "userName",
+        "phonePeNumber",
+        "pointsRedeemed",
+        "amountInr",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AreaAgentAssignment": {
+      "title": "AreaAgentAssignment",
+      "description": "Admin assignment of one Area Agent per Hyderabad locality (+20 bonus points per approved post in their area).",
+      "type": "object",
+      "properties": {
+        "areaName": {
+          "type": "string",
+          "description": "Locality name (e.g. Kukatpally).",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "agentUid": {
+          "type": "string",
+          "description": "Assigned user UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "agentName": {
+          "type": "string",
+          "description": "Assigned agent display name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "bonusPointsEarned": {
+          "type": "number",
+          "description": "Total bonus points earned by this agent in this area."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "areaName",
+        "agentUid",
+        "agentName",
+        "bonusPointsEarned",
+        "updatedAt"
+      ]
+    },
+    "HeroOfferSettings": {
+      "title": "HeroOfferSettings",
+      "description": "Admin-configurable Launch Offer area and dates (default: 200 points per To-Let post in Kukatpally for 7 days).",
+      "type": "object",
+      "properties": {
+        "offerArea": {
+          "type": "string",
+          "description": "Target area for 200-point launch offer.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "offerPoints": {
+          "type": "number",
+          "description": "Points per approved post in the offer area (200)."
+        },
+        "startDateMs": {
+          "type": "number",
+          "description": "Offer start timestamp in epoch ms."
+        },
+        "endDateMs": {
+          "type": "number",
+          "description": "Offer end timestamp in epoch ms."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": [
+        "offerArea",
+        "offerPoints",
+        "startDateMs",
+        "endDateMs",
+        "updatedAt"
+      ]
+    },
     "ScratchCard": {
       "title": "ScratchCard",
-      "description": "Scratch card reward issued when a Hero Upload is approved for 100 points.",
+      "description": "Scratch card reward issued when a Hero Upload is approved.",
       "type": "object",
       "properties": {
         "userId": {
@@ -431,7 +629,7 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "Private user profiles containing registration status, phone PII, and points."
+      "description": "Private user profiles containing registration status, 3-month free owner period, phone PII, referral code, Area Agent role, Rented Bonus wallet, and points."
     },
     "/houses/{houseId}": {
       "schema": { "$ref": "#/entities/HouseListing" },
@@ -443,7 +641,19 @@
     },
     "/heroUploads/{uploadId}": {
       "schema": { "$ref": "#/entities/HeroUpload" },
-      "description": "To-Let board photo uploads with GPS coordinates submitted by Rental Heroes."
+      "description": "Live camera To-Let board photo uploads with GPS coordinates submitted by Rental Heroes."
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "PhonePe withdrawal requests for Rental Heroes with 1000+ approved points."
+    },
+    "/areaAgents/{areaId}": {
+      "schema": { "$ref": "#/entities/AreaAgentAssignment" },
+      "description": "Admin-assigned Area Agents per locality earning 20 bonus points per approved post."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/HeroOfferSettings" },
+      "description": "Admin-configured Launch Offer area and dates."
     },
     "/scratchCards/{cardId}": {
       "schema": { "$ref": "#/entities/ScratchCard" },

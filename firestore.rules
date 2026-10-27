@@ -55,6 +55,13 @@ service cloud.firestore {
         'hasPaidSeekerFee',
         'hasPaidOwnerFee',
         'points',
+        'freeUntil',
+        'referralCode',
+        'referredByCode',
+        'referralBonusCredited',
+        'rentedBonusCash',
+        'agentArea',
+        'agentBonusPoints',
         'createdAt',
         'updatedAt'
       ]) &&
@@ -65,6 +72,13 @@ service cloud.firestore {
       data.hasPaidSeekerFee is bool &&
       data.hasPaidOwnerFee is bool &&
       data.points is number && data.points >= 0 && data.points <= 1000000 &&
+      (!('freeUntil' in data) || (data.freeUntil is number && data.freeUntil >= 0 && data.freeUntil <= 9999999999999)) &&
+      (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 20)) &&
+      (!('referredByCode' in data) || (data.referredByCode is string && data.referredByCode.size() >= 0 && data.referredByCode.size() <= 20)) &&
+      (!('referralBonusCredited' in data) || (data.referralBonusCredited is bool)) &&
+      (!('rentedBonusCash' in data) || (data.rentedBonusCash is number && data.rentedBonusCash >= 0 && data.rentedBonusCash <= 1000000)) &&
+      (!('agentArea' in data) || (data.agentArea is string && data.agentArea.size() >= 0 && data.agentArea.size() <= 80)) &&
+      (!('agentBonusPoints' in data) || (data.agentBonusPoints is number && data.agentBonusPoints >= 0 && data.agentBonusPoints <= 1000000)) &&
       data.createdAt is timestamp &&
       data.updatedAt is timestamp;
     }
@@ -155,23 +169,108 @@ service cloud.firestore {
         'userId',
         'userName',
         'photoUrl',
+        'photoHash',
+        'areaName',
         'locationText',
         'latitude',
         'longitude',
+        'isLiveCamera',
         'status',
         'pointsAwarded',
+        'rentedBonusAwarded',
+        'referredByCode',
         'createdAt',
         'updatedAt'
       ]) &&
       data.userId is string && isValidId(data.userId) &&
       data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80 &&
       data.photoUrl is string && data.photoUrl.size() >= 10 && data.photoUrl.size() <= 700000 &&
+      (!('photoHash' in data) || (data.photoHash is string && data.photoHash.size() >= 4 && data.photoHash.size() <= 80)) &&
+      (!('areaName' in data) || (data.areaName is string && data.areaName.size() >= 2 && data.areaName.size() <= 80)) &&
       data.locationText is string && data.locationText.size() >= 2 && data.locationText.size() <= 140 &&
       data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
       data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
-      data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
-      data.pointsAwarded is number && data.pointsAwarded in [0, 100] &&
+      (!('isLiveCamera' in data) || (data.isLiveCamera is bool)) &&
+      data.status is string && data.status in ['pending', 'approved', 'rejected', 'rented'] &&
+      data.pointsAwarded is number && data.pointsAwarded in [0, 100, 200] &&
+      (!('rentedBonusAwarded' in data) || (data.rentedBonusAwarded is number && data.rentedBonusAwarded in [0, 50])) &&
+      (!('referredByCode' in data) || (data.referredByCode is string && data.referredByCode.size() >= 0 && data.referredByCode.size() <= 20)) &&
       data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidWithdrawalRequest(data) {
+      return data.keys().hasAll([
+        'userId',
+        'userName',
+        'phonePeNumber',
+        'pointsRedeemed',
+        'amountInr',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId',
+        'userName',
+        'phonePeNumber',
+        'pointsRedeemed',
+        'amountInr',
+        'status',
+        'createdAt',
+        'updatedAt'
+      ]) &&
+      data.userId is string && isValidId(data.userId) &&
+      data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80 &&
+      data.phonePeNumber is string && data.phonePeNumber.size() >= 10 && data.phonePeNumber.size() <= 15 &&
+      data.pointsRedeemed is number && data.pointsRedeemed >= 1000 && data.pointsRedeemed <= 1000000 &&
+      data.amountInr is number && data.amountInr >= 100 && data.amountInr <= 100000 &&
+      data.status is string && data.status in ['pending', 'approved', 'rejected'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidAreaAgent(data) {
+      return data.keys().hasAll([
+        'areaName',
+        'agentUid',
+        'agentName',
+        'bonusPointsEarned',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'areaName',
+        'agentUid',
+        'agentName',
+        'bonusPointsEarned',
+        'updatedAt'
+      ]) &&
+      data.areaName is string && data.areaName.size() >= 2 && data.areaName.size() <= 80 &&
+      data.agentUid is string && isValidId(data.agentUid) &&
+      data.agentName is string && data.agentName.size() >= 1 && data.agentName.size() <= 80 &&
+      data.bonusPointsEarned is number && data.bonusPointsEarned >= 0 && data.bonusPointsEarned <= 1000000 &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidHeroOfferSettings(data) {
+      return data.keys().hasAll([
+        'offerArea',
+        'offerPoints',
+        'startDateMs',
+        'endDateMs',
+        'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'offerArea',
+        'offerPoints',
+        'startDateMs',
+        'endDateMs',
+        'updatedAt'
+      ]) &&
+      data.offerArea is string && data.offerArea.size() >= 2 && data.offerArea.size() <= 80 &&
+      data.offerPoints is number && data.offerPoints in [100, 200] &&
+      data.startDateMs is number && data.startDateMs >= 0 && data.startDateMs <= 9999999999999 &&
+      data.endDateMs is number && data.endDateMs >= 0 && data.endDateMs <= 9999999999999 &&
       data.updatedAt is timestamp;
     }
 
@@ -253,10 +352,10 @@ service cloud.firestore {
       data.createdAt is timestamp;
     }
 
-    // 1. Users Collection (PII Isolated - No List Allowed)
+    // 1. Users Collection (PII Isolated - No List Allowed except Admin)
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
-      allow list: if false;
+      allow list: if isAdmin();
 
       allow create: if isVerifiedUser() &&
         isValidId(userId) &&
@@ -275,12 +374,16 @@ service cloud.firestore {
           isAdmin() ||
           (
             request.auth.uid == userId &&
-            incoming().points == existing().points &&
+            incoming().points <= existing().points &&
             incoming().diff(existing()).affectedKeys().hasOnly([
               'displayName',
               'phone',
               'hasPaidSeekerFee',
               'hasPaidOwnerFee',
+              'points',
+              'freeUntil',
+              'referralCode',
+              'referredByCode',
               'updatedAt'
             ])
           )
@@ -289,7 +392,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // 2. Houses Collection (Public Listings without PII)
+    // 2. Houses Collection (Public Listings without PII; Free 3-month owner posting supported)
     match /houses/{houseId} {
       allow get: if isValidId(houseId) && (
         existing().status == 'active' ||
@@ -307,8 +410,10 @@ service cloud.firestore {
           isAdmin() ||
           (
             incoming().ownerId == request.auth.uid &&
-            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidOwnerFee == true
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidOwnerFee == true ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.freeUntil > 0
+            )
           )
         );
 
@@ -342,7 +447,7 @@ service cloud.firestore {
           isAdmin() || existing().ownerId == request.auth.uid
         );
 
-      // Subcollection: Isolated Owner Phone Contact PII (Master Gate + Paid Seeker Gate)
+      // Subcollection: Isolated Owner Phone Contact PII (Master Gate + Paid Seeker / Free Bachelor-Hostel Gate)
       match /contact/{contactId} {
         allow get: if isSignedIn() &&
           isValidId(houseId) &&
@@ -352,8 +457,13 @@ service cloud.firestore {
             existing().ownerId == request.auth.uid ||
             isAdmin() ||
             (
-              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidSeekerFee == true
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidSeekerFee == true ||
+                (
+                  get(/databases/$(database)/documents/houses/$(houseId)).data.category in ['bachelor', 'hostel'] &&
+                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.phone.size() >= 10
+                )
+              )
             )
           );
 
@@ -402,14 +512,13 @@ service cloud.firestore {
 
     // 3. Rental Heroes Uploads Collection
     match /heroUploads/{uploadId} {
-      allow get: if isSignedIn() &&
-        isValidId(uploadId) && (
-          existing().userId == request.auth.uid || isAdmin()
-        );
-
-      allow list: if isSignedIn() && (
-        resource.data.userId == request.auth.uid || isAdmin()
+      allow get: if isValidId(uploadId) && (
+        existing().status in ['approved', 'rented'] ||
+        (isSignedIn() && (existing().userId == request.auth.uid || isAdmin()))
       );
+
+      allow list: if resource.data.status in ['approved', 'rented'] ||
+        (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
 
       allow create: if isVerifiedUser() &&
         isValidId(uploadId) &&
@@ -421,7 +530,7 @@ service cloud.firestore {
         incoming().updatedAt == request.time &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid));
 
-      // Action-Based Update + Terminal State Lock: Once approved/rejected, locked except for admin override
+      // Action-Based Update: Admin can approve/reject/mark rented; Verified Owners can mark an approved post as 'rented'
       allow update: if isVerifiedUser() &&
         isValidId(uploadId) &&
         isValidHeroUpload(incoming()) &&
@@ -432,15 +541,89 @@ service cloud.firestore {
         incoming().latitude == existing().latitude &&
         incoming().longitude == existing().longitude &&
         incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time &&
-        (existing().status == 'pending' || isAdmin()) &&
-        isAdmin() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'pointsAwarded', 'updatedAt']);
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().status == 'approved' &&
+            incoming().status == 'rented' &&
+            incoming().pointsAwarded == existing().pointsAwarded &&
+            exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            (
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hasPaidOwnerFee == true ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.freeUntil > 0
+            ) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rentedBonusAwarded', 'updatedAt'])
+          )
+        );
 
       allow delete: if isVerifiedUser() && isValidId(uploadId) && isAdmin();
     }
 
-    // 4. Scratch Cards Collection
+    // 4. Withdrawals Collection (PhonePe Payouts at 1000+ Approved Points)
+    match /withdrawals/{withdrawalId} {
+      allow get: if isSignedIn() &&
+        isValidId(withdrawalId) && (
+          existing().userId == request.auth.uid || isAdmin()
+        );
+
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+
+      allow create: if isVerifiedUser() &&
+        isValidId(withdrawalId) &&
+        isValidWithdrawalRequest(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.points >= 1000;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(withdrawalId) &&
+        isValidWithdrawalRequest(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().phonePeNumber == existing().phonePeNumber &&
+        incoming().pointsRedeemed == existing().pointsRedeemed &&
+        incoming().amountInr == existing().amountInr &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // 5. Area Agents Collection (1 Agent per Area assigned by Admin)
+    match /areaAgents/{areaId} {
+      allow get: if isValidId(areaId) && (existing().bonusPointsEarned >= 0 || isAdmin());
+      allow list: if resource.data.bonusPointsEarned >= 0 || isAdmin();
+
+      allow create, update: if isVerifiedUser() &&
+        isValidId(areaId) &&
+        isValidAreaAgent(incoming()) &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow delete: if isVerifiedUser() && isValidId(areaId) && isAdmin();
+    }
+
+    // 6. Settings Collection (Hero Offer Area & Dates configured by Admin)
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId) && (existing().offerPoints in [100, 200] || isAdmin());
+      allow list: if false;
+
+      allow create, update: if isVerifiedUser() &&
+        isValidId(settingId) &&
+        isValidHeroOfferSettings(incoming()) &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+
+      allow delete: if false;
+    }
+
+    // 7. Scratch Cards Collection
     match /scratchCards/{cardId} {
       allow get: if isSignedIn() &&
         isValidId(cardId) && (
@@ -490,7 +673,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // 5. Payments Collection (Immutable Registration Receipts)
+    // 8. Payments Collection (Immutable Registration Receipts)
     match /payments/{paymentId} {
       allow get: if isSignedIn() &&
         isValidId(paymentId) && (
@@ -511,7 +694,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // 6. Ads Collection (Home Screen Rotating Ad Banner - Admin Managed)
+    // 9. Ads Collection (Home Screen Rotating Ad Banner - Admin Managed)
     match /ads/{adId} {
       allow get: if isValidId(adId) && (existing().status == 'active' || isAdmin());
       allow list: if resource.data.status == 'active' || isAdmin();
@@ -526,7 +709,7 @@ service cloud.firestore {
       allow delete: if isVerifiedUser() && isValidId(adId) && isAdmin();
     }
 
-    // 7. Admins Registry
+    // 10. Admins Registry
     match /admins/{adminId} {
       allow get: if isSignedIn() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
       allow list: if false;
